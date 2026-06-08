@@ -16,6 +16,7 @@ build/
 deploy/k8s/app/secret.yaml
 .vagrant/
 */.env
+.vagrant/
 
 # Corporate TLS roots placed for Vagrant (see vagrant/certs/README.md)
 vagrant/certs/*.crt
