@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: demo-app-config
+  namespace: poc
+data:
+  SERVICE_NAME: "demo-app"
+  LOG_LEVEL: "INFO"
+  # Lab-only — set to "0" in any shared environment
+  INJECT_DB_SLOW_MS: "0"
+  INJECT_UPSTREAM_TIMEOUT: "0"
+  INJECT_CRASH_AFTER_REQUESTS: "0"
+  INJECT_ERROR_RATE_PERCENT: "0"

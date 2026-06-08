@@ -1,0 +1,5 @@
+aws_region          = "us-east-1"
+project_name        = "rca-poc"
+cluster_version     = "1.29"
+create_gitlab_oidc  = false
+# gitlab_project_path = "mygroup/myproject"

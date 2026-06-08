@@ -1,0 +1,92 @@
+# GitLab.com CI — RCA POC
+# Shared runners: Docker-in-Docker requires `privileged: true` (may be restricted on some tiers).
+# Alternative: Kaniko + OIDC to ECR (see docs/RCA_POC_PLAYBOOK.md Phase E).
+
+stages: [lint, build, deploy]
+
+variables:
+  DOCKER_HOST: tcp://docker:2375
+  DOCKER_TLS_CERTDIR: ""
+
+default:
+  interruptible: true
+
+lint:
+  stage: lint
+  image: python:3.12-slim
+  script:
+    - pip install --quiet ruff
+    - ruff check app agent
+    - python -m compileall -q app agent
+
+k8s_manifest_check:
+  stage: lint
+  image: bitnami/kubectl:1.29
+  script:
+    - kubectl apply -f deploy/k8s/app/ --dry-run=client
+    - kubectl apply -f deploy/k8s/agent/ --dry-run=client
+
+terraform_fmt_validate:
+  stage: lint
+  image: hashicorp/terraform:1.9
+  script:
+    - cd "$CI_PROJECT_DIR"
+    - terraform fmt -check -recursive terraform
+    - terraform -chdir=terraform/environments/poc init -backend=false -input=false
+    - terraform -chdir=terraform/environments/poc validate
+
+# Enable in GitLab CI/CD variables on a runner that allows Docker-in-Docker (privileged), e.g. self-hosted.
+build_images:
+  stage: build
+  image: docker:27-cli
+  services:
+    - docker:27-dind
+  privileged: true
+  rules:
+    - if: $ENABLE_DIND_BUILD == "true" && $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+    - if: $ENABLE_DIND_BUILD == "true" && $CI_COMMIT_TAG
+  variables:
+    DOCKER_TLS_CERTDIR: ""
+    DOCKER_HOST: tcp://docker:2375
+  before_script:
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+  script:
+    - docker build -t "$CI_REGISTRY_IMAGE/demo-app:$CI_COMMIT_SHA" ./app
+    - docker push "$CI_REGISTRY_IMAGE/demo-app:$CI_COMMIT_SHA"
+    - docker build -t "$CI_REGISTRY_IMAGE/rca-agent:$CI_COMMIT_SHA" ./agent
+    - docker push "$CI_REGISTRY_IMAGE/rca-agent:$CI_COMMIT_SHA"
+
+# Manual deploy: set KUBECONFIG_B64 (base64-encoded kubeconfig) as a masked CI variable, or use GitLab Agent.
+deploy_k8s:
+  stage: deploy
+  image: bitnami/kubectl:1.29
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+  script:
+    - test -n "${KUBECONFIG_B64}" || (echo "Set KUBECONFIG_B64 CI variable" && exit 1)
+    - mkdir -p ~/.kube
+    - echo "$KUBECONFIG_B64" | base64 -d > ~/.kube/config
+    - kubectl apply -f deploy/k8s/app/namespace.yaml
+    - kubectl apply -f deploy/k8s/app/rbac.yaml
+    - kubectl apply -f deploy/k8s/app/configmap.yaml
+    - kubectl -n poc get secret demo-app-db >/dev/null 2>&1 || (echo "Create secret demo-app-db first" && exit 1)
+    - |
+      sed "s|CHANGEME_ECR/demo-app:latest|$CI_REGISTRY_IMAGE/demo-app:$CI_COMMIT_SHA|" deploy/k8s/app/deployment.yaml | kubectl apply -f -
+    - kubectl apply -f deploy/k8s/app/service.yaml
+    - kubectl apply -f deploy/k8s/agent/rbac.yaml
+    - |
+      sed "s|CHANGEME_ECR/rca-agent:latest|$CI_REGISTRY_IMAGE/rca-agent:$CI_COMMIT_SHA|" deploy/k8s/agent/deployment.yaml | kubectl apply -f -
+    - kubectl apply -f deploy/k8s/agent/service.yaml
+
+smoke:
+  stage: deploy
+  image: bitnami/kubectl:1.29
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH
+      when: manual
+  script:
+    - test -n "${KUBECONFIG_B64}" || (echo "Set KUBECONFIG_B64 CI variable" && exit 1)
+    - mkdir -p ~/.kube
+    - echo "$KUBECONFIG_B64" | base64 -d > ~/.kube/config
+    - kubectl -n poc run smoke-curl --rm -i --restart=Never --image=curlimages/curl:8.5.0 --command -- curl -sfS "http://demo-app.poc.svc.cluster.local/health"

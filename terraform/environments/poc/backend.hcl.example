@@ -1,0 +1,6 @@
+# Copy to backend.hcl (untracked) and run: terraform init -backend-config=backend.hcl
+bucket         = "YOUR_STATE_BUCKET"
+key            = "poc/terraform.tfstate"
+region         = "us-east-1"
+dynamodb_table = "terraform-locks"
+encrypt        = true

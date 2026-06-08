@@ -1,0 +1,26 @@
+.env
+.terraform/
+*.tfstate
+*.tfstate.*
+.terraform.lock.hcl
+crash.log
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+deploy/k8s/app/secret.yaml
+
+# Corporate TLS roots placed for Vagrant (see vagrant/certs/README.md)
+vagrant/certs/*.crt
+vagrant/certs/*.pem
+vagrant/certs/*.cer
+
+# Corporate CAs for Docker build (pip / PyPI); keep .gitkeep only
+app/docker-certs/*
+!app/docker-certs/.gitkeep
