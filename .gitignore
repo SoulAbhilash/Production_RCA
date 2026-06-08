@@ -25,4 +25,6 @@ vagrant/certs/*.cer
 # Corporate CAs for Docker build (pip / PyPI); keep .gitkeep only
 app/docker-certs/*
 !app/docker-certs/.gitkeep
+agent/docker-certs/*
+!agent/docker-certs/.gitkeep
 

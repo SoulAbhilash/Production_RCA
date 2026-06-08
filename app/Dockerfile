@@ -24,7 +24,7 @@ FROM base AS runtime
 RUN useradd --create-home --uid 10001 appuser
 COPY --from=deps /usr/local/lib/python3.12/site-packages /usr/local/lib/python3.12/site-packages
 COPY --from=deps /usr/local/bin /usr/local/bin
-COPY main.py .
+COPY demo_app/ ./demo_app/
 USER appuser
 EXPOSE 8000
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "demo_app.main:app", "--host", "0.0.0.0", "--port", "8000"]

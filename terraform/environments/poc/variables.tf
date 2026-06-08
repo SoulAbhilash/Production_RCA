@@ -19,14 +19,20 @@ variable "cluster_version" {
   default = "1.29"
 }
 
-variable "create_gitlab_oidc" {
+variable "create_github_oidc" {
   type        = bool
   default     = false
-  description = "If true, creates gitlab.com OIDC provider + CI role (skip if provider already exists in account)"
+  description = "If true, creates GitHub Actions OIDC provider + CI role (skip if provider already exists in account)"
 }
 
-variable "gitlab_project_path" {
+variable "github_repository" {
   type        = string
-  default     = "example/group"
-  description = "GitLab project path (group/project). Used when create_gitlab_oidc=true"
+  default     = "myorg/myrepo"
+  description = "GitHub repo org/name — must match workflows and IAM trust (sub claim). Used when create_github_oidc=true"
+}
+
+variable "github_branch_names" {
+  type        = list(string)
+  default     = ["main"]
+  description = "Branch names allowed to assume the CI role via OIDC (refs/heads/<name>)"
 }

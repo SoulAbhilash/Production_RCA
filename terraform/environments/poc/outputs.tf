@@ -18,6 +18,6 @@ output "eks_configure_kubeconfig" {
   value = "aws eks update-kubeconfig --region ${var.aws_region} --name ${module.eks.cluster_name}"
 }
 
-output "gitlab_ci_role_arn" {
-  value = try(module.iam_gitlab_oidc[0].role_arn, null)
+output "github_actions_role_arn" {
+  value = try(module.iam_github_oidc[0].role_arn, null)
 }

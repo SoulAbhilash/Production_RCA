@@ -1,6 +1,6 @@
 # RCA Finder POC — End-to-End Playbook
 
-This document is the **single source of truth** for building a minimal-cost proof of concept: a demo backend with Postgres, containerized and deployed to **AWS EKS** via **Terraform**, with **GitLab.com** CI/CD, **log shipping** to **CloudWatch**, **alert-driven activation** of a **Python RCA agent**, and a **scenario matrix** that exercises common production failure classes in a **lab-safe** way.
+This document is the **single source of truth** for building a minimal-cost proof of concept: a demo backend with Postgres, containerized and deployed to **AWS EKS** via **Terraform**, with **GitHub Actions** CI/CD, **log shipping** to **CloudWatch**, **alert-driven activation** of a **Python RCA agent**, and a **scenario matrix** that exercises common production failure classes in a **lab-safe** way.
 
 ---
 
@@ -15,7 +15,7 @@ This document is the **single source of truth** for building a minimal-cost proo
 7. [Phase B — Containerization and K8s contract](#phase-b--containerization-and-k8s-contract)
 8. [Phase C — AWS baseline (Terraform)](#phase-c--aws-baseline-terraform)
 9. [Phase D — EKS (minimal cluster)](#phase-d--eks-minimal-cluster)
-10. [Phase E — GitLab.com CI/CD](#phase-e--gitlabcom-cicd)
+10. [Phase E — GitHub Actions CI/CD](#phase-e--github-actions-cicd)
 11. [Phase F — Observability (logs and real-time monitoring)](#phase-f--observability-logs-and-real-time-monitoring)
 12. [Phase G — RCA agent (Python)](#phase-g--rca-agent-python)
 13. [Phase H — Agent activation (alerts → webhook)](#phase-h--agent-activation-alerts--webhook)
@@ -23,7 +23,7 @@ This document is the **single source of truth** for building a minimal-cost proo
 15. [Phase J — Hardening and teardown](#phase-j--hardening-and-teardown)
 16. [Risks and mitigations](#16-risks-and-mitigations)
 17. [Appendix A — Webhook payload schema](#appendix-a--webhook-payload-schema)
-18. [Appendix B — GitLab.com vs self-managed runners](#appendix-b--gitlabcom-vs-self-managed-runners)
+18. [Appendix B — GitHub-hosted vs self-hosted runners](#appendix-b--github-hosted-vs-self-hosted-runners)
 
 ---
 
@@ -34,9 +34,9 @@ This document is the **single source of truth** for building a minimal-cost proo
 - Minimal **Python** HTTP API backed by **Postgres**, with **structured JSON logs** and **deterministic failure injection** via environment variables (for repeatable RCA drills).
 - **Docker** image published to **Amazon ECR**, deployed to **Amazon EKS** (Kubernetes on AWS).
 - **Infrastructure as code** with **Terraform** (remote state on S3 + DynamoDB locking).
-- **GitLab.com** pipelines: test, build, publish to ECR, deploy to EKS, smoke test.
+- **GitHub Actions** workflows: test, build, publish to ECR, deploy to EKS, smoke test.
 - **Log visibility**: pod logs via `kubectl logs -f`, and (when configured) **Fluent Bit → CloudWatch Logs** for retention and **Logs Insights** queries for the agent.
-- **RCA agent**: HTTP service that accepts an **incident webhook**, gathers **evidence** (logs window, Kubernetes events, optional GitLab metadata), calls an **LLM** with a **strict output schema**, returns/stores an RCA artifact.
+- **RCA agent**: HTTP service that accepts an **incident webhook**, gathers **evidence** (logs window, Kubernetes events, optional GitHub metadata), calls an **LLM** with a **strict output schema**, returns/stores an RCA artifact.
 - **Automation**: at least one path where a **synthetic failure** triggers an **alert** that **POSTs** to the agent (e.g., **Prometheus + Alertmanager** in-cluster, or **CloudWatch Alarm → SNS → Lambda**).
 
 ### 1.2 Non-goals (out)
@@ -47,7 +47,7 @@ This document is the **single source of truth** for building a minimal-cost proo
 
 ### 1.3 Safety boundaries
 
-- **Human error, bugs, DB, overload, third-party mock**: keep all injections **inside your AWS account** and **your GitLab project**.
+- **Human error, bugs, DB, overload, third-party mock**: keep all injections **inside your AWS account** and **your GitHub repository**.
 - **Security attacks**: simulate only with **tools you run** (e.g., `vegeta`, `hey`) against **your own** Service/LoadBalancer in a **dedicated lab account/VPC**. Do not target external sites.
 - **Hardware / node failure**: perform **cordoned/drained** experiments or **managed node group** scale-down only in **non-production** clusters.
 
@@ -57,20 +57,20 @@ This document is the **single source of truth** for building a minimal-cost proo
 
 ### 2.1 Narrative
 
-1. A developer pushes to **GitLab.com**. **GitLab CI** builds the **demo app** image and pushes to **ECR**.
-2. The same pipeline (or a protected manual job) runs **Terraform** or **kubectl/helm** to roll out the **Deployment** on **EKS**.
+1. A developer pushes to **GitHub**. **GitHub Actions** builds the **demo app** image and pushes to **ECR**.
+2. The same workflow (or a protected manual job) runs **Terraform** or **kubectl/helm** to roll out the **Deployment** on **EKS**.
 3. Application pods emit **JSON logs** to stdout; a **DaemonSet** (Fluent Bit) ships logs to **CloudWatch Logs**.
 4. **Metrics and events** (kube-state-metrics, Prometheus, or CloudWatch metrics) feed **alarms** (Alertmanager or CloudWatch).
 5. On firing, the alerting path invokes the **RCA agent** `POST /incidents` with a time window and labels.
-6. The agent pulls **log excerpts**, **Kubernetes events**, and optionally **GitLab API** data (commits, pipelines) for correlation, then calls the **LLM** (OpenAI, Anthropic, or **Amazon Bedrock**).
-7. The agent returns a **structured RCA** (hypothesis, evidence, mitigations). Store the result in **S3** and/or a **GitLab issue** comment for auditability.
+6. The agent pulls **log excerpts**, **Kubernetes events**, and optionally **GitHub API** data (commits, workflow runs) for correlation, then calls the **LLM** (OpenAI, Anthropic, or **Amazon Bedrock**).
+7. The agent returns a **structured RCA** (hypothesis, evidence, mitigations). Store the result in **S3** and/or a **GitHub issue** comment for auditability.
 
 ### 2.2 Diagram
 
 ```mermaid
 flowchart LR
-  dev[Developer] --> gitlab[GitLab_com]
-  gitlab --> ci[GitLab_CI]
+  dev[Developer] --> github[GitHub_com]
+  github --> ci[GitHub_Actions]
   ci --> ecr[AWS_ECR]
   ci --> deploy[Deploy_kubectl_Helm]
   deploy --> eks[AWS_EKS]
@@ -86,7 +86,7 @@ flowchart LR
   am --> agent[RCA_agent_Python]
   alarms --> agent
   cw --> agent
-  gitlab --> meta[GitLab_API_metadata]
+  github --> meta[GitHub_API_metadata]
   meta --> agent
   agent --> out[RCA_report_S3_or_Issue]
 ```
@@ -126,12 +126,12 @@ flowchart LR
 ### 4.2 Cloud accounts
 
 - [ ] **AWS account** used only for this POC (recommended).
-- [ ] **GitLab.com** group/project with **CI/CD** enabled.
+- [ ] **GitHub** organization or account with **Actions** enabled for this repository.
 
 ### 4.3 Access patterns
 
 - [ ] Human admin uses **IAM Identity Center** or **IAM user/MFA** (team policy).
-- [ ] GitLab CI uses **OIDC federation to AWS** (preferred) for `sts:AssumeRoleWithWebIdentity` (see Phase E).
+- [ ] GitHub Actions uses **OIDC federation to AWS** (preferred) for `sts:AssumeRoleWithWebIdentity` (see Phase E).
 
 ---
 
@@ -145,7 +145,10 @@ flowchart LR
 | `deploy/k8s/` | Kubernetes manifests (app, agent, RBAC, optional Prometheus) |
 | `terraform/` | VPC, ECR, EKS, IAM for CI |
 | `docker-compose.yml` | Local Postgres + app |
-| [`.gitlab-ci.yml`](../.gitlab-ci.yml) | Pipeline definition |
+| [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | Lint, K8s dry-run, Terraform validate |
+| [`.github/workflows/build-push-ecr.yml`](../.github/workflows/build-push-ecr.yml) | Build/push images to ECR (OIDC on `main`) |
+| [`.github/workflows/deploy-eks-manual.yml`](../.github/workflows/deploy-eks-manual.yml) | Manual `kubectl apply` (secrets required) |
+| [`.github/workflows/smoke-eks-manual.yml`](../.github/workflows/smoke-eks-manual.yml) | Manual in-cluster `/health` check |
 | [`README.md`](../README.md) | Quick start pointer |
 
 ---
@@ -225,7 +228,7 @@ flowchart LR
 - [ ] **C.3** Configure backend in `terraform/backend.hcl` (or CI vars) — **do not** commit bucket names if policy forbids; use `backend.hcl.example`.
 - [ ] **C.4** Apply **VPC** module: public + private subnets (POC: **single NAT**).
 - [ ] **C.5** Apply **ECR** repositories: `demo-app`, `rca-agent` with lifecycle policy (keep last 10 images).
-- [ ] **C.6** Create **IAM OIDC trust** for GitLab (see Phase E) and an **IAM role** for CI with policies: ECR push, EKS describe/update, **optional** Terraform state access.
+- [ ] **C.6** Create **IAM OIDC trust** for GitHub Actions (see Phase E) and an **IAM role** for CI with policies: ECR push, EKS describe/update, **optional** Terraform state access.
 
 ### Completion criteria (Phase C)
 
@@ -234,7 +237,7 @@ flowchart LR
 
 ### Artifacts
 
-- `terraform/modules/vpc`, `terraform/modules/ecr`, `terraform/modules/iam-gitlab-oidc`, `terraform/environments/poc/*`.
+- `terraform/modules/vpc`, `terraform/modules/ecr`, `terraform/modules/iam-github-oidc`, `terraform/environments/poc/*`.
 
 ---
 
@@ -262,42 +265,41 @@ flowchart LR
 
 ---
 
-## Phase E — GitLab.com CI/CD
+## Phase E — GitHub Actions CI/CD
 
-**Goal:** Push-to-deploy with **short-lived** AWS credentials.
+**Goal:** Push-to-deploy with **short-lived** AWS credentials (no static `AWS_ACCESS_KEY_ID` in GitHub).
 
 ### Checklist
 
-- [ ] **E.1** In AWS IAM, create **OIDC identity provider** for GitLab (`https://gitlab.com` issuer, thumbprints per AWS docs).
-- [ ] **E.2** Create role `GitLabCIPocRole` with trust policy conditioned on:
-  - `StringEquals`: `gitlab.com:aud` = `https://gitlab.com`
-  - `StringLike`: `gitlab.com:sub` = `project_path:yourgroup/yourproject:ref_type:branch:ref:main` (tighten to environment if using environments).
+- [ ] **E.1** In AWS IAM, ensure an **OIDC identity provider** exists for `https://token.actions.githubusercontent.com` (Terraform module `iam-github-oidc`, or create once per account — see [GitHub: Configure OIDC in AWS](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services)).
+- [ ] **E.2** Create a role (e.g. `github-actions-poc-rca`) with trust policy conditioned on:
+  - `StringEquals`: `token.actions.githubusercontent.com:aud` = `sts.amazonaws.com`
+  - `StringLike`: `token.actions.githubusercontent.com:sub` = `repo:YOUR_ORG/YOUR_REPO:ref:refs/heads/main` (add more `sub` patterns only if needed, e.g. release tags).
 - [ ] **E.3** Attach policies: **ECR** push/pull for your repos; **eks:DescribeCluster**; **sts:GetCallerIdentity**; deploy via **`kubectl`** using an auth mechanism:
   - **Option 1 (common):** store a **narrow** `KUBECONFIG` secret generated from a deploy bot IAM user (POC only), **rotated**; or
-  - **Option 2 (better):** use **`aws eks update-kubeconfig`** in job with OIDC role that has **`system:masters`** is **too broad** — prefer EKS **Access Entry** / **`eks:Access`** APIs mapping role to **`AmazonEKSClusterAdminPolicy`** only for lab).
-- [ ] **E.4** Add `.gitlab-ci.yml` stages: `test` → `build` → `publish` → `deploy` → `smoke`.
-- [ ] **E.5** Use **`id_tokens`** for AWS if using web identity (GitLab 16.9+ pattern) — see GitLab docs: [OpenID Connect with AWS](https://docs.gitlab.com/ci/cloud_services/aws/).
-- [ ] **E.6** Protect `main` and mask CI variables; never echo secrets in job logs.
+  - **Option 2 (better):** use **`aws eks update-kubeconfig`** in a job with an OIDC role that maps to EKS **access entries** (avoid granting `system:masters` outside lab).
+- [ ] **E.4** Add workflows under `.github/workflows/`: CI (`ci.yml`), build/push (`build-push-ecr.yml`), optional manual deploy/smoke (`deploy-eks-manual.yml`, `smoke-eks-manual.yml`).
+- [ ] **E.5** In the GitHub repo, add **Actions secrets** / **variables** the workflows expect (see table below). Use **`aws-actions/configure-aws-credentials`** with `id-token: write` permission on jobs that assume the role.
+- [ ] **E.6** Protect `main`, use **environments** for production-like targets, and never echo secrets in job logs.
 
-### GitLab CI variables (reference)
+### GitHub Actions secrets and variables (reference)
 
-| Variable | Purpose |
-|----------|---------|
-| `AWS_ROLE_ARN` | Role to assume via OIDC (ECR push / AWS APIs) |
-| `AWS_DEFAULT_REGION` | e.g. `us-east-1` |
-| `EKS_CLUSTER_NAME` | For kubeconfig update |
-| `ECR_REGISTRY` | `<acct>.dkr.ecr.region.amazonaws.com` |
-| `ENABLE_DIND_BUILD` | Set to `true` on a runner that allows **privileged** Docker-in-Docker to run the `build_images` job (see [.gitlab-ci.yml](../.gitlab-ci.yml)). |
-| `KUBECONFIG_B64` | Base64 kubeconfig for manual `deploy_k8s` / `smoke` jobs (masked). Prefer **GitLab Agent for Kubernetes** for private clusters. |
+| Name | Kind | Purpose |
+|------|------|---------|
+| `AWS_ROLE_ARN` | Secret | IAM role ARN for OIDC (`build-push-ecr.yml`) |
+| `KUBECONFIG_B64` | Secret | Base64 kubeconfig for manual deploy/smoke workflows (masked) |
+| `ECR_REGISTRY` | Secret | e.g. `123456789012.dkr.ecr.us-east-1.amazonaws.com` — used by manual deploy to substitute image URLs |
+
+Workflow `build-push-ecr.yml` uses `permissions: id-token: write` and defaults **AWS region** to `us-east-1` in the workflow file — edit if your ECR cluster is elsewhere.
 
 ### Completion criteria (Phase E)
 
-- [ ] Pipeline on **`main`** publishes a **new image tag** to your registry (**ECR** and/or **GitLab Container Registry** — this repo’s sample pipeline pushes to GitLab Registry when `ENABLE_DIND_BUILD=true`).
-- [ ] Deploy job rolls the **Deployment** and **smoke** hits `/health` (in-cluster `curl` via `kubectl run` or port-forward job).
+- [ ] A workflow run on **`main`** publishes a **new image tag** (commit SHA) to **ECR** after `AWS_ROLE_ARN` is configured.
+- [ ] Manual **Deploy EKS** rolls the **Deployment** and **Smoke EKS** hits `/health` (in-cluster `curl` via `kubectl run`).
 
 ### Artifacts
 
-- [`.gitlab-ci.yml`](../.gitlab-ci.yml), GitLab **CI/CD variables** screenshot checklist (not committed).
+- [`.github/workflows/`](../.github/workflows/), GitHub **Actions secrets** checklist (not committed).
 
 ---
 
@@ -333,11 +335,11 @@ flowchart LR
 - [ ] **G.2** Implement evidence collectors:
   - [ ] **CloudWatch Logs Insights** query for `trace_id` or `kubernetes.pod_name` in window.
   - [ ] **Kubernetes**: `CoreV1Api.list_namespaced_event` + pod describe summary (in-cluster config).
-  - [ ] **GitLab**: REST call for **commits** and **pipelines** between `window_start` and `window_end` (read-only token).
+  - [ ] **GitHub**: REST call for **commits** and **workflow runs** between `window_start` and `window_end` (read-only token, least scope).
 - [ ] **G.3** LLM call with **system prompt** requiring **JSON only** output with keys:  
   `hypothesis`, `confidence` (0–1), `evidence` (array of `{source, quote}`), `next_checks`, `blast_radius`, `mitigations`.
 - [ ] **G.4** Guardrails: **timeouts**, **max tokens**, **redact** lines matching `password=`, `Authorization`, `AKIA` patterns.
-- [ ] **G.5** Persist output to **S3** (`s3://.../rca/{incident_id}.json`) and/or echo to GitLab issue.
+- [ ] **G.5** Persist output to **S3** (`s3://.../rca/{incident_id}.json`) and/or echo to a **GitHub issue**.
 
 ### Completion criteria (Phase G)
 
@@ -376,7 +378,7 @@ Run each scenario in **`poc` namespace**; record **start/end time**, **alert nam
 
 | # | Category | Injection (lab) | Expected signals | What good RCA cites | Rollback |
 |---|----------|-----------------|------------------|---------------------|----------|
-| 1 | **Human error** | Apply wrong ConfigMap (`DATABASE_URL` typo) via `kubectl` or bad Helm values MR | `/ready` fails, DB connection errors in logs | Recent config change, pod spec diff, error stack | Revert MR / `kubectl rollout undo` |
+| 1 | **Human error** | Apply wrong ConfigMap (`DATABASE_URL` typo) via `kubectl` or bad Helm values PR | `/ready` fails, DB connection errors in logs | Recent config change, pod spec diff, error stack | Revert PR / `kubectl rollout undo` |
 | 2 | **Software bug** | Set `INJECT_CRASH_AFTER_REQUESTS=5` or add bug route | OOMKilled / CrashLoopBackOff, stack in logs if captured | Code path, restart pattern, commit in window | Remove env / fix code |
 | 3 | **Database problems** | `INJECT_DB_SLOW_MS=5000` or overload `/items` | Latency ↑, timeouts, pool exhaustion | DB latency field, query slowness | Unset slow inject |
 | 4 | **Hardware failures** | `kubectl delete node <one-node>` (lab) or Spot interruption | `NodeNotReady`, pod evictions | Node event, reschedule | Replace node / scale group |
@@ -439,15 +441,15 @@ Run each scenario in **`poc` namespace**; record **start/end time**, **alert nam
 
 ---
 
-## Appendix B — GitLab.com vs self-managed runners
+## Appendix B — GitHub-hosted vs self-hosted runners
 
-| Topic | GitLab.com (SaaS) | Self-managed runner |
-|-------|-------------------|----------------------|
-| OIDC to AWS | Supported via `id_tokens` | Same if runner reaches GitLab.com |
-| Egress to private EKS API | May need **public endpoint** or **GitLab agent for Kubernetes** | Runner in VPC can reach private endpoint |
-| Cost | CI minutes on Free/Paid tiers | You pay EC2 for runner |
+| Topic | GitHub-hosted (`ubuntu-latest`) | Self-hosted runner |
+|-------|--------------------------------|---------------------|
+| OIDC to AWS | Supported via `id-token: write` + `configure-aws-credentials` | Same if runner can reach GitHub OIDC |
+| Egress to private EKS API | May need **public EKS endpoint** or **VPN / tailnet** to reach API from runner IP | Runner **inside the VPC** can use private endpoint |
+| Cost | Included minutes / paid larger runners | You pay for the runner host |
 
-For **private EKS API**, prefer **GitLab Agent for Kubernetes** or a **small runner in the VPC**.
+For **private EKS API**, prefer a **small self-hosted runner in the VPC** or a **broker** pattern (e.g. deploy job triggers in-cluster sync) instead of exposing the API publicly.
 
 ---
 
@@ -455,4 +457,5 @@ For **private EKS API**, prefer **GitLab Agent for Kubernetes** or a **small run
 
 | Version | Date | Notes |
 |---------|------|-------|
+| 1.1 | 2026-06-08 | GitHub Actions + `iam-github-oidc`; removed GitLab CI |
 | 1.0 | 2026-06-08 | Initial playbook + repo scaffold |

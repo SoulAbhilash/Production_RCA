@@ -37,11 +37,12 @@ module "eks" {
   }
 }
 
-module "iam_gitlab_oidc" {
-  count  = var.create_gitlab_oidc ? 1 : 0
-  source = "../../modules/iam-gitlab-oidc"
+module "iam_github_oidc" {
+  count  = var.create_github_oidc ? 1 : 0
+  source = "../../modules/iam-github-oidc"
 
-  gitlab_project_path = var.gitlab_project_path
-  ecr_repository_arns   = module.ecr.repository_arns
-  eks_cluster_arns      = [module.eks.cluster_arn]
+  github_repository   = var.github_repository
+  github_branch_names = var.github_branch_names
+  ecr_repository_arns = module.ecr.repository_arns
+  eks_cluster_arns    = [module.eks.cluster_arn]
 }

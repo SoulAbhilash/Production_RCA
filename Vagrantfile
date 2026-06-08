@@ -5,6 +5,7 @@
 # Requires: VirtualBox + Vagrant. From repo root:
 #   vagrant up              # both
 #   vagrant up demo         # app + Postgres only
+#   If host port 8000 is busy: DEMO_APP_HOST_PORT=18000 vagrant up demo  (PowerShell: $env:DEMO_APP_HOST_PORT="18000")
 #   vagrant up agent        # RCA agent on http://127.0.0.1:18080 (host) -> guest 8080
 #   vagrant ssh demo|agent
 #
@@ -23,8 +24,10 @@ Vagrant.configure("2") do |config|
 
   config.vm.define "demo", primary: true do |demo|
     demo.vm.hostname = "rca-demo-docker"
-    # API on host 8000. Postgres guest 5432 -> host 5433 (avoids clash with local Postgres on 5432).
-    demo.vm.network "forwarded_port", guest: 8000, host: 8000, host_ip: "127.0.0.1"
+    # API: guest 8000 -> host (default 8000). If host 8000 is busy, set DEMO_APP_HOST_PORT e.g. 18000
+    # before `vagrant up`, and/or rely on auto_correct so Vagrant picks another host port (see `vagrant port demo`).
+    demo_api_host_port = ENV.fetch("DEMO_APP_HOST_PORT", "8000").to_i
+    demo.vm.network "forwarded_port", guest: 8000, host: demo_api_host_port, host_ip: "127.0.0.1", auto_correct: true
     demo.vm.network "forwarded_port", guest: 5432, host: 5433, host_ip: "127.0.0.1", auto_correct: true
 
     demo.vm.provider "virtualbox" do |vb|

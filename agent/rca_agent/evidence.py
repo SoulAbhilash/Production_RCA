@@ -1,4 +1,4 @@
-"""Evidence collection (stubs until CloudWatch / K8s / GitLab are wired)."""
+"""Evidence collection (stubs until CloudWatch / K8s / GitHub are wired)."""
 
 from __future__ import annotations
 
@@ -16,5 +16,5 @@ def stub_evidence(payload: IncidentPayload) -> dict[str, Any]:
             f"labels={json.dumps(payload.labels)}"
         ),
         "kubernetes_summary": "In-cluster collector optional: set K8S_NAMESPACE and use ServiceAccount.",
-        "gitlab_summary": "Set GITLAB_TOKEN + GITLAB_PROJECT_ID to pull commits for window.",
+        "github_summary": "Set GITHUB_TOKEN + GITHUB_REPOSITORY (owner/repo) to pull commits/workflows for window.",
     }

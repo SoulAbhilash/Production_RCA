@@ -1,0 +1,43 @@
+# Build images and push to Amazon ECR using OIDC (no long-lived AWS keys).
+# Prereqs: Terraform module iam-github-oidc (or equivalent IAM role) + repo secret AWS_ROLE_ARN.
+name: Build and push ECR
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: ecr-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push images
+        env:
+          REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          TAG: ${{ github.sha }}
+        run: |
+          set -euxo pipefail
+          docker build -t "${REGISTRY}/demo-app:${TAG}" ./app
+          docker push "${REGISTRY}/demo-app:${TAG}"
+          docker build -t "${REGISTRY}/rca-agent:${TAG}" ./agent
+          docker push "${REGISTRY}/rca-agent:${TAG}"

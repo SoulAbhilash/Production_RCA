@@ -4,6 +4,19 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
 
 FROM base AS deps
+# Optional PEM roots for PyPI/pip behind TLS inspection (see agent/README.md, agent/docker-certs/)
+COPY docker-certs/ /tmp/docker-certs/
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates \
+    && i=0 \
+    && for f in /tmp/docker-certs/*.crt /tmp/docker-certs/*.cer /tmp/docker-certs/*.pem; do \
+         if [ -f "$f" ] && grep -q "BEGIN CERTIFICATE" "$f" 2>/dev/null; then \
+           i=$((i + 1)); cp "$f" "/usr/local/share/ca-certificates/corp-build-$i.crt"; \
+         fi; \
+       done \
+    && update-ca-certificates \
+    && rm -rf /tmp/docker-certs \
+    && rm -rf /var/lib/apt/lists/*
 COPY requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
 

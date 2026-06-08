@@ -1,0 +1,51 @@
+# Lint and validate — no AWS credentials required
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-python:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Ruff + compile
+        run: |
+          pip install --quiet ruff
+          ruff check app agent
+          python -m compileall -q app agent
+
+  k8s-manifest-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.29.0"
+      - name: kubectl dry-run (client)
+        run: |
+          kubectl apply -f deploy/k8s/app/ --dry-run=client
+          kubectl apply -f deploy/k8s/agent/ --dry-run=client
+
+  terraform-fmt-validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.0"
+      - name: fmt + validate (poc, no backend)
+        run: |
+          terraform fmt -check -recursive terraform
+          terraform -chdir=terraform/environments/poc init -backend=false -input=false
+          terraform -chdir=terraform/environments/poc validate

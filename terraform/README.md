@@ -5,7 +5,7 @@
 - `modules/vpc` — VPC + single NAT (cost-aware default).
 - `modules/ecr` — `demo-app` and `rca-agent` repositories + lifecycle policy.
 - `modules/eks` — minimal managed node group (`t3.small`).
-- `modules/iam-gitlab-oidc` — optional GitLab.com → AWS role for CI (enable only if no OIDC provider conflict).
+- `modules/iam-github-oidc` — optional GitHub Actions → AWS role for CI (enable only if no OIDC provider conflict).
 - `environments/poc` — wires modules for a single environment.
 
 ## First-time init (local state / no backend)
@@ -22,10 +22,12 @@ terraform plan -var-file=terraform.tfvars.example
 2. Copy `backend.hcl.example` → `backend.hcl` and edit bucket/table/region.
 3. `terraform init -backend-config=backend.hcl`
 
-## GitLab OIDC module
+## GitHub OIDC module
 
-Set `create_gitlab_oidc = true` and `gitlab_project_path = "yourgroup/yourproject"` **only** if your AWS account does not already have an OIDC provider for `https://gitlab.com`. If one exists, import it or manage the role separately.
+Set `create_github_oidc = true` and `github_repository = "yourorg/yourrepo"` **only** if your AWS account does not already have an OIDC provider for `https://token.actions.githubusercontent.com`. If one exists, import it or manage the role separately.
+
+Match `github_repository` and `github_branch_names` to the IAM `sub` claims GitHub sends (see [AWS docs: GitHub OIDC](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services)).
 
 ## EKS access for the CI role
 
-Grant the GitLab role cluster access (EKS access entries / console) after first apply — see playbook Phase E.
+Grant the GitHub Actions role cluster access (EKS access entries / console) after first apply — see playbook Phase E.

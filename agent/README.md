@@ -2,6 +2,12 @@
 
 FastAPI webhook: `POST /incidents` returns stub evidence plus optional LLM-backed RCA JSON.
 
+## Corporate TLS (`docker build` / pip)
+
+The image runs `pip` against **PyPI** in the `deps` stage. If your network does HTTPS inspection, add PEM root(s) with `-----BEGIN CERTIFICATE-----` as `*.crt`, `*.cer`, or `*.pem` under **`agent/docker-certs/`** (gitignored except `.gitkeep`), same as [`../app/README.md`](../app/README.md).
+
+**Vagrant:** `vagrant provision agent` copies `vagrant/certs/*` into `agent/docker-certs/` in the VM workspace before `docker build`, matching the demo VM behavior.
+
 ## Layout
 
 | Path | Role |
@@ -18,7 +24,7 @@ FastAPI webhook: `POST /incidents` returns stub evidence plus optional LLM-backe
 
 **Gateway (OpenAI-compatible, AISH-style headers)** — used when all of the following are set (aliases in parentheses):
 
-- `AISH_LLM_API_URL` (`LLM_GATEWAY_BASE_URL`) — base URL only (no `/v1/chat/completions` suffix)
+- `AISH_LLM_API_URL` (`LLM_GATEWAY_BASE_URL`) — base URL only (no `/v1/chat/completions` suffix). You may include or omit a trailing `/v1`; the agent normalizes so the request path is not doubled.
 - `AISH_LLMGTW_KEY` (`LLM_GATEWAY_API_KEY`)
 - `AISH_LLM_MODEL` (`LLM_GATEWAY_MODEL`)
 

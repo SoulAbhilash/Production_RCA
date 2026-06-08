@@ -1,6 +1,6 @@
 # Production agent monitor (RCA POC)
 
-Lab-oriented demo for **root cause analysis (RCA)** automation: a small Python API on **Postgres**, deployable to **AWS EKS**, with GitLab CI, observability hooks, and an **RCA agent** webhook service.
+Lab-oriented demo for **root cause analysis (RCA)** automation: a small Python API on **Postgres**, deployable to **AWS EKS**, with **GitHub Actions**, observability hooks, and an **RCA agent** webhook service.
 
 ## Start here
 
@@ -28,7 +28,8 @@ From the repo root: `vagrant up` (requires VirtualBox) brings up **two** VMs: **
 | `app/` | Demo FastAPI application |
 | `agent/` | RCA webhook (`rca_agent` package); see [`agent/README.md`](agent/README.md) |
 | `deploy/k8s/` | Kubernetes manifests |
-| `terraform/` | VPC, ECR, EKS, GitLab OIDC IAM (poc environment) |
+| `terraform/` | VPC, ECR, EKS, optional GitHub Actions OIDC IAM (poc environment) |
+| `.github/workflows/` | CI (lint, K8s dry-run, Terraform validate), ECR build/push (OIDC), manual EKS deploy/smoke |
 
 ## License
 

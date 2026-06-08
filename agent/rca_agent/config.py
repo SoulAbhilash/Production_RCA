@@ -57,6 +57,9 @@ def load_llm_config() -> LLMConfig:
         or os.environ.get("LLM_GATEWAY_BASE_URL")
         or ""
     ).strip().rstrip("/")
+    # Many gateways document a host ending in `/v1`; we always append `/v1/chat/completions`.
+    if base.endswith("/v1"):
+        base = base[:-3].rstrip("/")
     gkey = (
         os.environ.get("AISH_LLMGTW_KEY")
         or os.environ.get("LLM_GATEWAY_API_KEY")
