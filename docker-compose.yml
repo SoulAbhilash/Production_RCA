@@ -23,6 +23,11 @@ services:
       DATABASE_URL: postgresql+psycopg://app:app@db:5432/app
       SERVICE_NAME: demo-app
       LOG_LEVEL: INFO
+      # Phase A injection toggles (override from shell: INJECT_DB_SLOW_MS=500 docker compose up -d app)
+      INJECT_DB_SLOW_MS: ${INJECT_DB_SLOW_MS:-0}
+      INJECT_UPSTREAM_TIMEOUT: ${INJECT_UPSTREAM_TIMEOUT:-0}
+      INJECT_CRASH_AFTER_REQUESTS: ${INJECT_CRASH_AFTER_REQUESTS:-0}
+      INJECT_ERROR_RATE_PERCENT: ${INJECT_ERROR_RATE_PERCENT:-0}
     depends_on:
       db:
         condition: service_healthy

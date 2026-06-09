@@ -2,6 +2,7 @@
 # vi: set ft=ruby :
 
 # Two Linux VMs (Ubuntu): demo (docker compose app+db) and agent (docker run RCA agent + optional .env).
+# Provisioning installs Docker Engine + Compose, kubectl (/usr/local/bin), then starts the stacks.
 # Requires: VirtualBox + Vagrant. From repo root:
 #   vagrant up              # both
 #   vagrant up demo         # app + Postgres only

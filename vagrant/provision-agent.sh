@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Second VM: build agent image from repo copy, run with docker --env-file agent/.env when present.
+# Second VM: Docker + kubectl, build agent image from repo copy, run with docker --env-file agent/.env when present.
 # Corporate TLS: same vagrant/certs/ as demo VM (see vagrant/certs/README.md).
 
 set -euo pipefail
@@ -9,6 +9,8 @@ WORK="/home/vagrant/agent-run"
 
 # shellcheck source=/dev/null
 source /vagrant/vagrant/install-docker.sh
+# shellcheck source=/dev/null
+source /vagrant/vagrant/install-kubectl.sh
 
 mkdir -p "$WORK"
 find /vagrant -mindepth 1 -maxdepth 1 ! -name ".vagrant" -exec cp -a {} "$WORK/" \;

@@ -23,7 +23,13 @@ The container runs `uvicorn demo_app.main:app`. Endpoints:
 | GET | `/upstream-mock` | Mock outbound dependency (`INJECT_UPSTREAM_TIMEOUT`) |
 | GET | `/buggy` | Throws `RuntimeError` for error logs |
 
-Injection environment variables are documented in [../docs/RCA_POC_PLAYBOOK.md](../docs/RCA_POC_PLAYBOOK.md) Phase A.
+Injection environment variables are documented in [../docs/RCA_POC_PLAYBOOK.md](../docs/RCA_POC_PLAYBOOK.md) Phase A. In **docker compose**, the repo root `docker-compose.yml` passes them through with defaults (`0` = off), for example:
+
+```bash
+INJECT_DB_SLOW_MS=500 docker compose up -d app --force-recreate
+```
+
+**Vagrant (demo VM):** after `vagrant up demo`, you can re-run checks with `sudo bash /vagrant/scripts/phase_a7_injections.sh` (uses the same compose project under `/home/vagrant/compose-run`). Structured log shape (Phase **A.6**): pipe `docker compose logs app` to `python3 /vagrant/scripts/verify_a6_json_logs.py` on the host or inside the VM.
 
 ## Run locally (no Docker)
 

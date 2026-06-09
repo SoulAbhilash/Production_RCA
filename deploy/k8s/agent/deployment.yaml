@@ -30,12 +30,15 @@ spec:
           env:
             - name: LOG_LEVEL
               value: INFO
-            # Create Secret: kubectl create secret generic rca-agent-secrets --from-literal=gemini-api-key=YOUR_KEY -n poc
+            # Secret is not in git. Create once per cluster:
+            #   kubectl create secret generic rca-agent-secrets \
+            #     --from-literal=gemini-api-key='YOUR_NEW_KEY' -n poc
+            # key below must match the literal name after --from-literal=
             - name: GEMINI_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: rca-agent-secrets
-                  key: AIzaSyAM_kAUfUn0lz4WFiCQ0-qKNCkBr8fut2w
+                  key: gemini-api-key
             - name: GEMINI_MODEL
               value: "gemini-2.0-flash"
           readinessProbe:

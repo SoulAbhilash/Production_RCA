@@ -91,20 +91,24 @@ flowchart LR
   agent --> out[RCA_report_S3_or_Issue]
 ```
 
+
+
 ---
 
 ## 3. Cost guardrails (AWS POC)
 
-| Item | POC guidance |
-|------|----------------|
-| **EKS control plane** | Hourly charge is unavoidable; **destroy the cluster** when not demoing. |
-| **Worker nodes** | Use **1–2** small instances (e.g., `t3.small` / `t3.medium`) or a **single** Fargate profile (tradeoff: debugging/cold start). **Single AZ** is acceptable. |
-| **NAT Gateway** | Often the **largest** fixed cost in a small VPC. Options: **one NAT** for POC, **VPC endpoints** for S3/ECR to reduce data path costs, or schedule **nightly teardown**. |
-| **Container Insights** | Useful but can **increase cost**; start with **Fluent Bit + Logs Insights** and basic CPU/memory before enabling full Container Insights. |
-| **Log retention** | Set **short retention** (e.g., 1–7 days) on log groups for POC. |
-| **ECR** | Add **lifecycle policy** (keep last N images). |
-| **Spot** | Optional for nodes; **cheaper** but nodes may disappear—good for “hardware” demos, confusing for first-time setup. |
-| **Load balancers** | Prefer **`kubectl port-forward`** for early integration; add **ALB** only when you need external demos. |
+
+| Item                   | POC guidance                                                                                                                                                             |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **EKS control plane**  | Hourly charge is unavoidable; **destroy the cluster** when not demoing.                                                                                                  |
+| **Worker nodes**       | Use **1–2** small instances (e.g., `t3.small` / `t3.medium`) or a **single** Fargate profile (tradeoff: debugging/cold start). **Single AZ** is acceptable.              |
+| **NAT Gateway**        | Often the **largest** fixed cost in a small VPC. Options: **one NAT** for POC, **VPC endpoints** for S3/ECR to reduce data path costs, or schedule **nightly teardown**. |
+| **Container Insights** | Useful but can **increase cost**; start with **Fluent Bit + Logs Insights** and basic CPU/memory before enabling full Container Insights.                                |
+| **Log retention**      | Set **short retention** (e.g., 1–7 days) on log groups for POC.                                                                                                          |
+| **ECR**                | Add **lifecycle policy** (keep last N images).                                                                                                                           |
+| **Spot**               | Optional for nodes; **cheaper** but nodes may disappear—good for “hardware” demos, confusing for first-time setup.                                                       |
+| **Load balancers**     | Prefer `**kubectl port-forward`** for early integration; add **ALB** only when you need external demos.                                                                  |
+
 
 **Completion criteria (cost discipline)**
 
@@ -137,19 +141,21 @@ flowchart LR
 
 ## 5. Repository layout
 
-| Path | Purpose |
-|------|---------|
-| [`docs/RCA_POC_PLAYBOOK.md`](RCA_POC_PLAYBOOK.md) | This playbook |
-| `app/` | Demo FastAPI service + Dockerfile |
-| `agent/` | RCA webhook service + Dockerfile |
-| `deploy/k8s/` | Kubernetes manifests (app, agent, RBAC, optional Prometheus) |
-| `terraform/` | VPC, ECR, EKS, IAM for CI |
-| `docker-compose.yml` | Local Postgres + app |
-| [`.github/workflows/ci.yml`](../.github/workflows/ci.yml) | Lint, K8s dry-run, Terraform validate |
-| [`.github/workflows/build-push-ecr.yml`](../.github/workflows/build-push-ecr.yml) | Build/push images to ECR (OIDC on `main`) |
-| [`.github/workflows/deploy-eks-manual.yml`](../.github/workflows/deploy-eks-manual.yml) | Manual `kubectl apply` (secrets required) |
-| [`.github/workflows/smoke-eks-manual.yml`](../.github/workflows/smoke-eks-manual.yml) | Manual in-cluster `/health` check |
-| [`README.md`](../README.md) | Quick start pointer |
+
+| Path                                                                                    | Purpose                                                                                          |
+| --------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------ |
+| `[docs/RCA_POC_PLAYBOOK.md](RCA_POC_PLAYBOOK.md)`                                       | This playbook                                                                                    |
+| `app/`                                                                                  | Demo FastAPI service + Dockerfile                                                                |
+| `agent/`                                                                                | RCA webhook service + Dockerfile                                                                 |
+| `deploy/k8s/`                                                                           | Kubernetes manifests (app, agent, RBAC, optional Prometheus)                                     |
+| `terraform/`                                                                            | VPC, ECR, EKS, IAM for CI                                                                        |
+| `docker-compose.yml` (repo root)                                                        | Local Postgres + app; optional `INJECT_`* via env when running `docker compose up` (see Phase A) |
+| `[.github/workflows/ci.yml](../.github/workflows/ci.yml)`                               | Lint, K8s dry-run, Terraform validate                                                            |
+| `[.github/workflows/build-push-ecr.yml](../.github/workflows/build-push-ecr.yml)`       | Build/push images to ECR (OIDC on `main`)                                                        |
+| `[.github/workflows/deploy-eks-manual.yml](../.github/workflows/deploy-eks-manual.yml)` | Manual `kubectl apply` (secrets required)                                                        |
+| `[.github/workflows/smoke-eks-manual.yml](../.github/workflows/smoke-eks-manual.yml)`   | Manual in-cluster `/health` check                                                                |
+| `[README.md](../README.md)`                                                             | Quick start pointer                                                                              |
+
 
 ---
 
@@ -159,33 +165,35 @@ flowchart LR
 
 ### Checklist
 
-- [ ] **A.1** Clone this repository and copy `.env.example` to `.env` (create if missing in your branch).
-- [ ] **A.2** Start stack: `docker compose up --build`.
-- [ ] **A.3** Verify **`GET /health`** returns HTTP 200 JSON.
-- [ ] **A.4** Verify **`GET /ready`** returns 200 only when DB is reachable (stop DB container to see 503).
-- [ ] **A.5** Verify **`GET /items`** performs a read against Postgres.
-- [ ] **A.6** Confirm logs are **single-line JSON** with fields at minimum: `timestamp`, `level`, `message`, `service`, `trace_id`, and when applicable `http.route`, `db.latency_ms`.
-- [ ] **A.7** Exercise injection env vars (see app README / table below):
-  - [ ] `INJECT_DB_SLOW_MS` — adds delay to DB operations.
-  - [ ] `INJECT_UPSTREAM_TIMEOUT` — simulates third-party timeout behavior in-process.
-  - [ ] `INJECT_CRASH_AFTER_REQUESTS` — process exits after N requests (simulates fatal bug / OOM loop when combined with restart policy).
-  - [ ] `INJECT_ERROR_RATE_PERCENT` — random 500s on selected routes.
+- [x] **A.1** Clone this repository and copy `.env.example` to `.env` (create if missing in your branch).
+- [x] **A.2** Start stack: `docker compose up --build`.
+- [x] **A.3** Verify `**GET /health`** returns HTTP 200 JSON.
+- [x] **A.4** Verify `**GET /ready`** returns 200 only when DB is reachable (stop DB container to see 503).
+- [x] **A.5** Verify `**GET /items`** performs a read against Postgres.
+- [x] **A.6** Confirm logs are **single-line JSON** with fields at minimum: `timestamp`, `level`, `message`, `service`, `trace_id`, and when applicable `http.route`, `db.latency_ms`. (Uvicorn also prints non-JSON access lines; validate lines that parse as JSON — e.g. pipe `docker compose logs app` into `python scripts/verify_a6_json_logs.py`.)
+- [x] **A.7** Exercise injection env vars (see app README / table below):
+  - [x] `INJECT_DB_SLOW_MS` — adds delay to DB operations.
+  - [x] `INJECT_UPSTREAM_TIMEOUT` — simulates third-party timeout behavior in-process.
+  - [x] `INJECT_CRASH_AFTER_REQUESTS` — process exits after N requests (simulates fatal bug / OOM loop when combined with restart policy).
+  - [x] `INJECT_ERROR_RATE_PERCENT` — random 500s on selected routes.
 
 ### Injection toggles (reference)
 
-| Variable | Effect |
-|----------|--------|
-| `INJECT_DB_SLOW_MS` | Sleep before/after DB calls (ms). |
-| `INJECT_UPSTREAM_TIMEOUT` | `1` makes “external” call path always time out (mock third-party). |
-| `INJECT_CRASH_AFTER_REQUESTS` | Exit process after N handled requests. |
-| `INJECT_ERROR_RATE_PERCENT` | 0–100 fraction of requests return 500 on `/items`. |
+
+| Variable                      | Effect                                                             |
+| ----------------------------- | ------------------------------------------------------------------ |
+| `INJECT_DB_SLOW_MS`           | Sleep before/after DB calls (ms).                                  |
+| `INJECT_UPSTREAM_TIMEOUT`     | `1` makes “external” call path always time out (mock third-party). |
+| `INJECT_CRASH_AFTER_REQUESTS` | Exit process after N handled requests.                             |
+| `INJECT_ERROR_RATE_PERCENT`   | 0–100 fraction of requests return 500 on `/items`.                 |
+
 
 ### Completion criteria (Phase A)
 
-- [ ] `docker compose up` brings up **app + db**; `/health` is 200.
-- [ ] `/ready` reflects DB connectivity.
-- [ ] Logs are **JSON** to stdout.
-- [ ] At least **two** injection modes verified manually.
+- [x] `docker compose up` brings up **app + db**; `/health` is 200.
+- [x] `/ready` reflects DB connectivity.
+- [x] Logs are **JSON** to stdout.
+- [x] At least **two** injection modes verified manually.
 
 ### Artifacts
 
@@ -199,8 +207,8 @@ flowchart LR
 
 ### Checklist
 
-- [ ] **B.1** Build image: `docker build -t demo-app:local ./app`.
-- [ ] **B.2** Run with same env vars as compose; verify `/health` and `/items`.
+- [x] **B.1** Build image: `docker build -t demo-app:local ./app`.
+- [x] **B.2** Run with same env vars as compose; verify `/health` and `/items`.
 - [ ] **B.3** Apply Kubernetes manifests with dry run:  
   `kubectl apply -f deploy/k8s/app/ --dry-run=client`
 - [ ] **B.4** Define **ConfigMap** for non-secret config (injection toggles for lab only—**do not** enable injections in any real production environment).
@@ -213,7 +221,7 @@ flowchart LR
 
 ### Artifacts
 
-- `app/Dockerfile`, `deploy/k8s/app/*`.
+- `app/Dockerfile`, `deploy/k8s/app/`*.
 
 ---
 
@@ -237,7 +245,7 @@ flowchart LR
 
 ### Artifacts
 
-- `terraform/modules/vpc`, `terraform/modules/ecr`, `terraform/modules/iam-github-oidc`, `terraform/environments/poc/*`.
+- `terraform/modules/vpc`, `terraform/modules/ecr`, `terraform/modules/iam-github-oidc`, `terraform/environments/poc/`*.
 
 ---
 
@@ -249,7 +257,7 @@ flowchart LR
 
 - [ ] **D.1** Create EKS cluster (version pinned) with **one** managed node group (or Fargate profile — document choice).
 - [ ] **D.2** Install **VPC CNI** (default) and ensure nodes can reach ECR/API endpoints (NAT or endpoints).
-- [ ] **D.3** Configure **`kubectl`** via `aws eks update-kubeconfig`.
+- [ ] **D.3** Configure `**kubectl`** via `aws eks update-kubeconfig`.
 - [ ] **D.4** (Optional cost) **AWS Load Balancer Controller** — skip until you need public ingress.
 - [ ] **D.5** **IRSA**: create IAM roles for **app** (if it needs AWS APIs) and **agent** (CloudWatch Logs read, S3 put) and annotate Kubernetes ServiceAccounts.
 
@@ -275,31 +283,33 @@ flowchart LR
 - [ ] **E.2** Create a role (e.g. `github-actions-poc-rca`) with trust policy conditioned on:
   - `StringEquals`: `token.actions.githubusercontent.com:aud` = `sts.amazonaws.com`
   - `StringLike`: `token.actions.githubusercontent.com:sub` = `repo:YOUR_ORG/YOUR_REPO:ref:refs/heads/main` (add more `sub` patterns only if needed, e.g. release tags).
-- [ ] **E.3** Attach policies: **ECR** push/pull for your repos; **eks:DescribeCluster**; **sts:GetCallerIdentity**; deploy via **`kubectl`** using an auth mechanism:
+- [ ] **E.3** Attach policies: **ECR** push/pull for your repos; **eks:DescribeCluster**; **sts:GetCallerIdentity**; deploy via `**kubectl`** using an auth mechanism:
   - **Option 1 (common):** store a **narrow** `KUBECONFIG` secret generated from a deploy bot IAM user (POC only), **rotated**; or
-  - **Option 2 (better):** use **`aws eks update-kubeconfig`** in a job with an OIDC role that maps to EKS **access entries** (avoid granting `system:masters` outside lab).
+  - **Option 2 (better):** use `**aws eks update-kubeconfig`** in a job with an OIDC role that maps to EKS **access entries** (avoid granting `system:masters` outside lab).
 - [ ] **E.4** Add workflows under `.github/workflows/`: CI (`ci.yml`), build/push (`build-push-ecr.yml`), optional manual deploy/smoke (`deploy-eks-manual.yml`, `smoke-eks-manual.yml`).
-- [ ] **E.5** In the GitHub repo, add **Actions secrets** / **variables** the workflows expect (see table below). Use **`aws-actions/configure-aws-credentials`** with `id-token: write` permission on jobs that assume the role.
+- [ ] **E.5** In the GitHub repo, add **Actions secrets** / **variables** the workflows expect (see table below). Use `**aws-actions/configure-aws-credentials`** with `id-token: write` permission on jobs that assume the role.
 - [ ] **E.6** Protect `main`, use **environments** for production-like targets, and never echo secrets in job logs.
 
 ### GitHub Actions secrets and variables (reference)
 
-| Name | Kind | Purpose |
-|------|------|---------|
-| `AWS_ROLE_ARN` | Secret | IAM role ARN for OIDC (`build-push-ecr.yml`) |
-| `KUBECONFIG_B64` | Secret | Base64 kubeconfig for manual deploy/smoke workflows (masked) |
-| `ECR_REGISTRY` | Secret | e.g. `123456789012.dkr.ecr.us-east-1.amazonaws.com` — used by manual deploy to substitute image URLs |
+
+| Name             | Kind   | Purpose                                                                                              |
+| ---------------- | ------ | ---------------------------------------------------------------------------------------------------- |
+| `AWS_ROLE_ARN`   | Secret | IAM role ARN for OIDC (`build-push-ecr.yml`)                                                         |
+| `KUBECONFIG_B64` | Secret | Base64 kubeconfig for manual deploy/smoke workflows (masked)                                         |
+| `ECR_REGISTRY`   | Secret | e.g. `123456789012.dkr.ecr.us-east-1.amazonaws.com` — used by manual deploy to substitute image URLs |
+
 
 Workflow `build-push-ecr.yml` uses `permissions: id-token: write` and defaults **AWS region** to `us-east-1` in the workflow file — edit if your ECR cluster is elsewhere.
 
 ### Completion criteria (Phase E)
 
-- [ ] A workflow run on **`main`** publishes a **new image tag** (commit SHA) to **ECR** after `AWS_ROLE_ARN` is configured.
+- [ ] A workflow run on `**main`** publishes a **new image tag** (commit SHA) to **ECR** after `AWS_ROLE_ARN` is configured.
 - [ ] Manual **Deploy EKS** rolls the **Deployment** and **Smoke EKS** hits `/health` (in-cluster `curl` via `kubectl run`).
 
 ### Artifacts
 
-- [`.github/workflows/`](../.github/workflows/), GitHub **Actions secrets** checklist (not committed).
+- `[.github/workflows/](../.github/workflows/)`, GitHub **Actions secrets** checklist (not committed).
 
 ---
 
@@ -311,7 +321,7 @@ Workflow `build-push-ecr.yml` uses `permissions: id-token: write` and defaults *
 
 - [ ] **F.1** Install **Fluent Bit** as DaemonSet (official AWS/Fluent chart or manifest) → CloudWatch log group `/eks/poc/demo-app`.
 - [ ] **F.2** Confirm **JSON** log fields appear as **parsed** fields in Logs Insights (may require parser config).
-- [ ] **F.3** “Real-time” for humans: practice **`kubectl logs -f`** and **CloudWatch Live Tail** on the log group.
+- [ ] **F.3** “Real-time” for humans: practice `**kubectl logs -f`** and **CloudWatch Live Tail** on the log group.
 - [ ] **F.4** (Optional) Install **kube-state-metrics** + **Prometheus** + **Alertmanager** using `deploy/k8s/monitoring/` placeholders or Helm.
 - [ ] **F.5** Create one **CloudWatch dashboard** OR Grafana board: pod restarts, CPU/mem, 5xx count (from app metric or nginx if added later).
 
@@ -331,7 +341,7 @@ Workflow `build-push-ecr.yml` uses `permissions: id-token: write` and defaults *
 
 ### Checklist
 
-- [ ] **G.1** Implement **`POST /incidents`** accepting JSON (see Appendix A).
+- [ ] **G.1** Implement `**POST /incidents`** accepting JSON (see Appendix A).
 - [ ] **G.2** Implement evidence collectors:
   - [ ] **CloudWatch Logs Insights** query for `trace_id` or `kubernetes.pod_name` in window.
   - [ ] **Kubernetes**: `CoreV1Api.list_namespaced_event` + pod describe summary (in-cluster config).
@@ -347,7 +357,7 @@ Workflow `build-push-ecr.yml` uses `permissions: id-token: write` and defaults *
 
 ### Artifacts
 
-- `agent/` service (`rca_agent` package), `deploy/k8s/agent/*`, LLM env: **Gemini** (`GEMINI_API_KEY`, optional `GEMINI_MODEL`) or `GOOGLE_API_KEY`, optional OpenAI-compatible gateway (`LLM_GATEWAY_BASE_URL`, `LLM_GATEWAY_API_KEY`, `LLM_GATEWAY_MODEL`), or `OPENAI_API_KEY`; see [`agent/README.md`](../agent/README.md).
+- `agent/` service (`rca_agent` package), `deploy/k8s/agent/`*, LLM env: **Gemini** (`GEMINI_API_KEY`, optional `GEMINI_MODEL`) or `GOOGLE_API_KEY`, optional OpenAI-compatible gateway (`LLM_GATEWAY_BASE_URL`, `LLM_GATEWAY_API_KEY`, `LLM_GATEWAY_MODEL`), or `OPENAI_API_KEY`; see `[agent/README.md](../agent/README.md)`.
 
 ---
 
@@ -374,18 +384,20 @@ Workflow `build-push-ecr.yml` uses `permissions: id-token: write` and defaults *
 
 ## Phase I — Scenario test matrix (8 categories)
 
-Run each scenario in **`poc` namespace**; record **start/end time**, **alert name**, **Logs Insights query**, and **link to RCA output**.
+Run each scenario in `**poc` namespace**; record **start/end time**, **alert name**, **Logs Insights query**, and **link to RCA output**.
 
-| # | Category | Injection (lab) | Expected signals | What good RCA cites | Rollback |
-|---|----------|-----------------|------------------|---------------------|----------|
-| 1 | **Human error** | Apply wrong ConfigMap (`DATABASE_URL` typo) via `kubectl` or bad Helm values PR | `/ready` fails, DB connection errors in logs | Recent config change, pod spec diff, error stack | Revert PR / `kubectl rollout undo` |
-| 2 | **Software bug** | Set `INJECT_CRASH_AFTER_REQUESTS=5` or add bug route | OOMKilled / CrashLoopBackOff, stack in logs if captured | Code path, restart pattern, commit in window | Remove env / fix code |
-| 3 | **Database problems** | `INJECT_DB_SLOW_MS=5000` or overload `/items` | Latency ↑, timeouts, pool exhaustion | DB latency field, query slowness | Unset slow inject |
-| 4 | **Hardware failures** | `kubectl delete node <one-node>` (lab) or Spot interruption | `NodeNotReady`, pod evictions | Node event, reschedule | Replace node / scale group |
-| 5 | **Resource overload** | `vegeta attack` against `/expensive` | CPU throttle, latency, 503 if limits low | HPA metrics, saturation | Stop load |
-| 6 | **Third-party outages** | `INJECT_UPSTREAM_TIMEOUT=1` on outbound mock | Timeout logs, circuit breaker | Dependency name, timeout stack | Unset inject |
-| 7 | **Security attacks** | Internal `vegeta` to public LB / NodePort | 5xx spike, high RPS logs | Rate shape, source IPs (VPC-only) | Stop tool, add rate limit later |
-| 8 | **Combined / ambiguous** | Two overlapping injects | Mixed signals | “Multiple hypotheses”, ranked evidence | Sequential tests next time |
+
+| #   | Category                 | Injection (lab)                                                                 | Expected signals                                        | What good RCA cites                              | Rollback                           |
+| --- | ------------------------ | ------------------------------------------------------------------------------- | ------------------------------------------------------- | ------------------------------------------------ | ---------------------------------- |
+| 1   | **Human error**          | Apply wrong ConfigMap (`DATABASE_URL` typo) via `kubectl` or bad Helm values PR | `/ready` fails, DB connection errors in logs            | Recent config change, pod spec diff, error stack | Revert PR / `kubectl rollout undo` |
+| 2   | **Software bug**         | Set `INJECT_CRASH_AFTER_REQUESTS=5` or add bug route                            | OOMKilled / CrashLoopBackOff, stack in logs if captured | Code path, restart pattern, commit in window     | Remove env / fix code              |
+| 3   | **Database problems**    | `INJECT_DB_SLOW_MS=5000` or overload `/items`                                   | Latency ↑, timeouts, pool exhaustion                    | DB latency field, query slowness                 | Unset slow inject                  |
+| 4   | **Hardware failures**    | `kubectl delete node <one-node>` (lab) or Spot interruption                     | `NodeNotReady`, pod evictions                           | Node event, reschedule                           | Replace node / scale group         |
+| 5   | **Resource overload**    | `vegeta attack` against `/expensive`                                            | CPU throttle, latency, 503 if limits low                | HPA metrics, saturation                          | Stop load                          |
+| 6   | **Third-party outages**  | `INJECT_UPSTREAM_TIMEOUT=1` on outbound mock                                    | Timeout logs, circuit breaker                           | Dependency name, timeout stack                   | Unset inject                       |
+| 7   | **Security attacks**     | Internal `vegeta` to public LB / NodePort                                       | 5xx spike, high RPS logs                                | Rate shape, source IPs (VPC-only)                | Stop tool, add rate limit later    |
+| 8   | **Combined / ambiguous** | Two overlapping injects                                                         | Mixed signals                                           | “Multiple hypotheses”, ranked evidence           | Sequential tests next time         |
+
 
 ### Completion criteria (Phase I)
 
@@ -410,12 +422,14 @@ Run each scenario in **`poc` namespace**; record **start/end time**, **alert nam
 
 ## 16. Risks and mitigations
 
-| Risk | Mitigation |
-|------|------------|
-| NAT + EKS idle cost | Nightly destroy; single NAT; endpoints for S3/ECR |
-| LLM hallucination | Attach **evidence[]** quotes; store raw logs snippet in S3 |
-| CI secrets leak | OIDC only; masked vars; no secrets in Dockerfile layers |
-| Alert storms | Grouping/ inhibition in Alertmanager; rate limit agent |
+
+| Risk                | Mitigation                                                 |
+| ------------------- | ---------------------------------------------------------- |
+| NAT + EKS idle cost | Nightly destroy; single NAT; endpoints for S3/ECR          |
+| LLM hallucination   | Attach **evidence[]** quotes; store raw logs snippet in S3 |
+| CI secrets leak     | OIDC only; masked vars; no secrets in Dockerfile layers    |
+| Alert storms        | Grouping/ inhibition in Alertmanager; rate limit agent     |
+
 
 ---
 
@@ -443,11 +457,13 @@ Run each scenario in **`poc` namespace**; record **start/end time**, **alert nam
 
 ## Appendix B — GitHub-hosted vs self-hosted runners
 
-| Topic | GitHub-hosted (`ubuntu-latest`) | Self-hosted runner |
-|-------|--------------------------------|---------------------|
-| OIDC to AWS | Supported via `id-token: write` + `configure-aws-credentials` | Same if runner can reach GitHub OIDC |
+
+| Topic                     | GitHub-hosted (`ubuntu-latest`)                                                   | Self-hosted runner                                 |
+| ------------------------- | --------------------------------------------------------------------------------- | -------------------------------------------------- |
+| OIDC to AWS               | Supported via `id-token: write` + `configure-aws-credentials`                     | Same if runner can reach GitHub OIDC               |
 | Egress to private EKS API | May need **public EKS endpoint** or **VPN / tailnet** to reach API from runner IP | Runner **inside the VPC** can use private endpoint |
-| Cost | Included minutes / paid larger runners | You pay for the runner host |
+| Cost                      | Included minutes / paid larger runners                                            | You pay for the runner host                        |
+
 
 For **private EKS API**, prefer a **small self-hosted runner in the VPC** or a **broker** pattern (e.g. deploy job triggers in-cluster sync) instead of exposing the API publicly.
 
@@ -455,7 +471,10 @@ For **private EKS API**, prefer a **small self-hosted runner in the VPC** or a *
 
 ## Document control
 
-| Version | Date | Notes |
-|---------|------|-------|
-| 1.1 | 2026-06-08 | GitHub Actions + `iam-github-oidc`; removed GitLab CI |
-| 1.0 | 2026-06-08 | Initial playbook + repo scaffold |
+
+| Version | Date       | Notes                                                 |
+| ------- | ---------- | ----------------------------------------------------- |
+| 1.1     | 2026-06-08 | GitHub Actions + `iam-github-oidc`; removed GitLab CI |
+| 1.0     | 2026-06-08 | Initial playbook + repo scaffold                      |
+
+
