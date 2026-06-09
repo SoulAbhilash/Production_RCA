@@ -347,7 +347,7 @@ Workflow `build-push-ecr.yml` uses `permissions: id-token: write` and defaults *
 
 ### Artifacts
 
-- `agent/` service (`rca_agent` package), `deploy/k8s/agent/*`, LLM env: OpenAI-compatible gateway (`AISH_LLM_API_URL`, `AISH_LLMGTW_KEY`, `AISH_LLM_MODEL`) or `OPENAI_API_KEY`; see [`agent/README.md`](../agent/README.md).
+- `agent/` service (`rca_agent` package), `deploy/k8s/agent/*`, LLM env: **Gemini** (`GEMINI_API_KEY`, optional `GEMINI_MODEL`) or `GOOGLE_API_KEY`, optional OpenAI-compatible gateway (`LLM_GATEWAY_BASE_URL`, `LLM_GATEWAY_API_KEY`, `LLM_GATEWAY_MODEL`), or `OPENAI_API_KEY`; see [`agent/README.md`](../agent/README.md).
 
 ---
 

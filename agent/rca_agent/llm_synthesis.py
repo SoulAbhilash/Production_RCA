@@ -15,11 +15,11 @@ log = logging.getLogger("rca-agent")
 
 def _disabled_rca(evidence: dict[str, Any]) -> dict[str, Any]:
     return {
-        "hypothesis": "LLM disabled (set gateway env AISH_* / LLM_GATEWAY_* or OPENAI_API_KEY); review evidence manually.",
+        "hypothesis": "LLM disabled (set GEMINI_API_KEY / GOOGLE_API_KEY, or LLM_GATEWAY_* / OPENAI_API_KEY); review evidence manually.",
         "confidence": 0.2,
         "evidence": [{"source": "agent", "quote": evidence["logs_summary"][:500]}],
         "next_checks": [
-            "Configure AISH_LLM_API_URL + AISH_LLMGTW_KEY + AISH_LLM_MODEL or OPENAI_API_KEY",
+            "Configure GEMINI_API_KEY (or GOOGLE_API_KEY) and optional GEMINI_MODEL",
             "Run Logs Insights on pod logs",
         ],
         "blast_radius": "unknown",

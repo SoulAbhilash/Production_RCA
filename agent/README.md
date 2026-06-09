@@ -15,32 +15,48 @@ The image runs `pip` against **PyPI** in the `deps` stage. If your network does 
 | `rca_agent/app.py` | FastAPI routes |
 | `rca_agent/models.py` | Pydantic payloads |
 | `rca_agent/evidence.py` | Evidence collectors (stubs today) |
-| `rca_agent/llm_client.py` | `POST …/v1/chat/completions` (OpenAI or gateway) |
+| `rca_agent/llm_client.py` | Gemini (`google-genai`) or `POST …/v1/chat/completions` (OpenAI / gateway) |
 | `rca_agent/llm_synthesis.py` | RCA prompt + JSON parse |
 | `rca_agent/config.py` | Env → `LLMConfig` |
 | `rca_agent/security.py` | Redaction helpers |
 
 ## LLM configuration
 
-**Gateway (OpenAI-compatible, AISH-style headers)** — used when all of the following are set (aliases in parentheses):
+**Gemini (default)** — used when **`GEMINI_API_KEY`** or **`GOOGLE_API_KEY`** is set (first non-empty wins between them for the key):
 
-- `AISH_LLM_API_URL` (`LLM_GATEWAY_BASE_URL`) — base URL only (no `/v1/chat/completions` suffix). You may include or omit a trailing `/v1`; the agent normalizes so the request path is not doubled.
-- `AISH_LLMGTW_KEY` (`LLM_GATEWAY_API_KEY`)
-- `AISH_LLM_MODEL` (`LLM_GATEWAY_MODEL`)
+- `GEMINI_API_KEY` — Google AI / Gemini API key
+- `GOOGLE_API_KEY` — same key under the name the Google Gen AI SDK also accepts
+- `GEMINI_MODEL` — optional (default `gemini-2.0-flash`)
 
-Optional:
+If outbound HTTPS to Google fails with certificate errors (common behind corporate TLS inspection), set a PEM bundle the **container** can read:
 
-- `LLM_TLS_VERIFY` — default `true`; set `false` only if your gateway uses TLS your image cannot verify (prefer `LLM_TLS_CA_BUNDLE` instead)
-- `LLM_TLS_CA_BUNDLE` — path to a PEM CA bundle for custom roots
+- `GEMINI_TLS_CA_BUNDLE` — preferred for Gemini-only setups
+- `LLM_TLS_CA_BUNDLE` — also honored for Gemini if `GEMINI_TLS_CA_BUNDLE` is unset (same file you might use for a gateway)
+
+Optional escape hatch (lab only): `GEMINI_TLS_VERIFY=false` disables TLS verification for Gemini calls (do not use in production).
+
+Shared optional knobs:
+
 - `LLM_MAX_RETRIES` — default `3`
 - `LLM_RETRY_DELAY_S` — default `5`
 
-**OpenAI** — if gateway vars are not all set and `OPENAI_API_KEY` is present:
+**OpenAI-compatible gateway** — if no Gemini key is set and all of the following are set:
+
+- `LLM_GATEWAY_BASE_URL` — base URL only (no `/v1/chat/completions` suffix). You may include or omit a trailing `/v1`; the agent normalizes so the request path is not doubled.
+- `LLM_GATEWAY_API_KEY`
+- `LLM_GATEWAY_MODEL`
+
+Optional for gateway only:
+
+- `LLM_TLS_VERIFY` — default `true`; set `false` only if your gateway uses TLS your image cannot verify (prefer `LLM_TLS_CA_BUNDLE` instead)
+- `LLM_TLS_CA_BUNDLE` — path to a PEM CA bundle for custom roots
+
+**OpenAI** — if neither Gemini nor the gateway triple is configured and `OPENAI_API_KEY` is present:
 
 - `OPENAI_API_KEY`
 - `OPENAI_MODEL` (default `gpt-4o-mini`)
 
-**Disabled** — if neither gateway triple nor `OPENAI_API_KEY` is set, the handler returns a manual-review RCA stub.
+**Disabled** — if none of the above applies, the handler returns a manual-review RCA stub.
 
 ### Local `agent/.env` (optional)
 

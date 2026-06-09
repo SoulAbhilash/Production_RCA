@@ -30,24 +30,14 @@ spec:
           env:
             - name: LOG_LEVEL
               value: INFO
-            # Optional: mount from Secret in real deployments
-            # - name: OPENAI_API_KEY
-            #   valueFrom:
-            #     secretKeyRef:
-            #       name: rca-agent-secrets
-            #       key: OPENAI_API_KEY
-            # OpenAI-compatible gateway (AISH-style); takes precedence over OPENAI_API_KEY when all set
-            - name: AISH_LLM_API_URL
-              value: "https://aishapi.ion.nokia.net/v1"
-            - name: AISH_LLMGTW_KEY
+            # Create Secret: kubectl create secret generic rca-agent-secrets --from-literal=gemini-api-key=YOUR_KEY -n poc
+            - name: GEMINI_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: rca-agent-secrets
-                  key: oxLxGA5DG1I2yJK68m06SCe4CLrgkwyQT36aZESvMmxduq08JzGV5VPqEDqcpCJndCpvbGwimCuI3oiDRp2jfB50oJYsTRPiBfcbCkPYY2D5HEQzeWvsK92FCN86q3pM
-            - name: AISH_LLM_MODEL
-              value: "/mnt/model/gpt-oss-120b"
-            - name: LLM_TLS_CA_BUNDLE
-              value: "/etc/ssl/corp/ca.pem"
+                  key: AIzaSyAM_kAUfUn0lz4WFiCQ0-qKNCkBr8fut2w
+            - name: GEMINI_MODEL
+              value: "gemini-2.0-flash"
           readinessProbe:
             httpGet:
               path: /health
