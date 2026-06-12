@@ -1,11 +1,13 @@
 # -*- mode: ruby -*-
 # vi: set ft=ruby :
 
-# Two Linux VMs (Ubuntu): demo (docker compose app+db) and agent (docker run RCA agent + optional .env).
-# Provisioning installs Docker Engine + Compose, kubectl (/usr/local/bin), then starts the stacks.
+# Two Linux VMs (Ubuntu): demo = full POC in one place (Docker Compose app+DB + minikube + kubectl);
+# agent = RCA agent container only (Docker + kubectl, no minikube).
+# Demo keeps Compose and Kubernetes on the same guest so you do not need a second VM or host minikube for this flow.
+# Skip minikube start / save RAM: MINIKUBE_START=0 vagrant up demo  (PowerShell: $env:MINIKUBE_START="0")
 # Requires: VirtualBox + Vagrant. From repo root:
-#   vagrant up              # both
-#   vagrant up demo         # app + Postgres only
+#   vagrant up              # both VMs
+#   vagrant up demo         # app + Postgres + minikube (default MINIKUBE_START=1)
 #   If host port 8000 is busy: DEMO_APP_HOST_PORT=18000 vagrant up demo  (PowerShell: $env:DEMO_APP_HOST_PORT="18000")
 #   vagrant up agent        # RCA agent on http://127.0.0.1:18080 (host) -> guest 8080
 #   vagrant ssh demo|agent
@@ -33,11 +35,13 @@ Vagrant.configure("2") do |config|
 
     demo.vm.provider "virtualbox" do |vb|
       vb.name = "production_agent_monitor-demo"
-      vb.cpus = 1
-      vb.memory = 2048
+      vb.cpus = 2
+      # minikube (docker driver) + docker compose app/DB; use MINIKUBE_START=0 to skip cluster and lower RAM
+      vb.memory = 4096
     end
 
-    demo.vm.provision "shell", path: "vagrant/provision.sh", privileged: true, env: proxy_env
+    minikube_env = { "MINIKUBE_START" => ENV.fetch("MINIKUBE_START", "1") }
+    demo.vm.provision "shell", path: "vagrant/provision.sh", privileged: true, env: proxy_env.merge(minikube_env)
   end
 
   config.vm.define "agent" do |agent|

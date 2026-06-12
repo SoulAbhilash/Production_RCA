@@ -1,2 +1,3 @@
 # Bash provision must stay LF for Vagrant on Windows hosts
 vagrant/*.sh text eol=lf
+scripts/*.sh text eol=lf

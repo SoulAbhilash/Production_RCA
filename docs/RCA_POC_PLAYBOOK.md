@@ -209,15 +209,15 @@ flowchart LR
 
 - [x] **B.1** Build image: `docker build -t demo-app:local ./app`.
 - [x] **B.2** Run with same env vars as compose; verify `/health` and `/items`.
-- [ ] **B.3** Apply Kubernetes manifests with dry run:  
+- [x] **B.3** Apply Kubernetes manifests with dry run:  
   `kubectl apply -f deploy/k8s/app/ --dry-run=client`
-- [ ] **B.4** Define **ConfigMap** for non-secret config (injection toggles for lab only—**do not** enable injections in any real production environment).
-- [ ] **B.5** Define **Secret** for `DATABASE_URL` (use Sealed Secrets or External Secrets in real environments; for POC base64 Secret is acceptable **only** in lab).
+- [x] **B.4** Define **ConfigMap** for non-secret config (injection toggles for lab only—**do not** enable injections in any real production environment).
+- [x] **B.5** Define **Secret** for `DATABASE_URL` (use Sealed Secrets or External Secrets in real environments; for POC base64 Secret is acceptable **only** in lab).
 
 ### Completion criteria (Phase B)
 
-- [ ] Image runs as **non-root** (see Dockerfile `USER`).
-- [ ] `kubectl apply --dry-run=client` succeeds for all app manifests.
+- [x] Image runs as **non-root** (see Dockerfile `USER`).
+- [x] `kubectl apply --dry-run=client` succeeds for all app manifests.
 
 ### Artifacts
 
@@ -231,8 +231,8 @@ flowchart LR
 
 ### Checklist
 
-- [ ] **C.1** Create **S3 bucket** for Terraform state (versioning ON, encryption ON, block public access ON).
-- [ ] **C.2** Create **DynamoDB table** `terraform-locks` with partition key `LockID` (String).
+- [x] **C.1** Create **S3 bucket** for Terraform state (versioning ON, encryption ON, block public access ON).
+- [x] **C.2** Create **DynamoDB table** `terraform-locks` with partition key `LockID` (String).
 - [ ] **C.3** Configure backend in `terraform/backend.hcl` (or CI vars) — **do not** commit bucket names if policy forbids; use `backend.hcl.example`.
 - [ ] **C.4** Apply **VPC** module: public + private subnets (POC: **single NAT**).
 - [ ] **C.5** Apply **ECR** repositories: `demo-app`, `rca-agent` with lifecycle policy (keep last 10 images).

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Installs Docker Engine + Compose plugin, kubectl, copies project off vboxsf (reliable builds),
+# Installs Docker Engine + Compose plugin, kubectl, minikube (local K8s), copies project off vboxsf (reliable builds),
 # runs docker compose from repo root, verifies FastAPI <-> Postgres.
 #
 # Corporate TLS: drop PEM .crt/.pem into /vagrant/vagrant/certs/ (see vagrant/certs/README.md).
@@ -13,6 +13,8 @@ WORK="/home/vagrant/compose-run"
 source /vagrant/vagrant/install-docker.sh
 # shellcheck source=/dev/null
 source /vagrant/vagrant/install-kubectl.sh
+# shellcheck source=/dev/null
+source /vagrant/vagrant/install-minikube.sh
 
 # Docker builds on VirtualBox shared folders (/vagrant) often fail on Windows hosts; use ext4 copy.
 mkdir -p "$WORK"

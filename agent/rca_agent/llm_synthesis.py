@@ -15,7 +15,7 @@ log = logging.getLogger("rca-agent")
 
 def _disabled_rca(evidence: dict[str, Any]) -> dict[str, Any]:
     return {
-        "hypothesis": "LLM disabled (set GEMINI_API_KEY / GOOGLE_API_KEY, or LLM_GATEWAY_* / OPENAI_API_KEY); review evidence manually.",
+        "hypothesis": "LLM disabled (set GEMINI_API_KEY or GOOGLE_API_KEY); review evidence manually.",
         "confidence": 0.2,
         "evidence": [{"source": "agent", "quote": evidence["logs_summary"][:500]}],
         "next_checks": [
@@ -32,7 +32,7 @@ def _failed_rca(exc: BaseException) -> dict[str, Any]:
         "hypothesis": f"LLM call failed: {exc}",
         "confidence": 0.0,
         "evidence": [],
-        "next_checks": ["Retry with smaller window", "Check API key, gateway URL, and egress"],
+        "next_checks": ["Retry with smaller window", "Check GEMINI_API_KEY / GOOGLE_API_KEY and egress to Google"],
         "blast_radius": "unknown",
         "mitigations": [],
     }
