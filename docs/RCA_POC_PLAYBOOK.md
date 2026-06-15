@@ -233,15 +233,15 @@ flowchart LR
 
 - [x] **C.1** Create **S3 bucket** for Terraform state (versioning ON, encryption ON, block public access ON).
 - [x] **C.2** Create **DynamoDB table** `terraform-locks` with partition key `LockID` (String).
-- [ ] **C.3** Configure backend in `terraform/backend.hcl` (or CI vars) — **do not** commit bucket names if policy forbids; use `backend.hcl.example`.
-- [ ] **C.4** Apply **VPC** module: public + private subnets (POC: **single NAT**).
-- [ ] **C.5** Apply **ECR** repositories: `demo-app`, `rca-agent` with lifecycle policy (keep last 10 images).
-- [ ] **C.6** Create **IAM OIDC trust** for GitHub Actions (see Phase E) and an **IAM role** for CI with policies: ECR push, EKS describe/update, **optional** Terraform state access.
+- [x] **C.3** Configure backend in `terraform/backend.hcl` (or CI vars) — **do not** commit bucket names if policy forbids; use `backend.hcl.example`.
+- [x] **C.4** Apply **VPC** module: public + private subnets (POC: **single NAT**).
+- [x] **C.5** Apply **ECR** repositories: `demo-app`, `rca-agent` with lifecycle policy (keep last 10 images).
+- [x] **C.6** Create **IAM OIDC trust** for GitHub Actions (see Phase E) and an **IAM role** for CI with policies: ECR push, EKS describe/update, **optional** Terraform state access.
 
 ### Completion criteria (Phase C)
 
-- [ ] `terraform init` + `terraform plan` succeeds from a clean clone (with backend config supplied).
-- [ ] ECR repositories visible in console; state locking prevents concurrent apply.
+- [x] `terraform init` + `terraform plan` succeeds from a clean clone (with backend config supplied).
+- [x] ECR repositories visible in console; state locking prevents concurrent apply.
 
 ### Artifacts
 
