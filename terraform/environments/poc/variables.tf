@@ -15,8 +15,9 @@ variable "vpc_cidr" {
 }
 
 variable "cluster_version" {
-  type    = string
-  default = "1.29"
+  type        = string
+  default     = "1.30"
+  description = "EKS control plane + node group version; use a version Amazon still ships AMIs for (upgrade one minor at a time from an existing older cluster)."
 }
 
 variable "create_github_oidc" {
