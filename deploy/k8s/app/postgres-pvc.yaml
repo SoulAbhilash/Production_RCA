@@ -1,0 +1,17 @@
+# Optional lab persistence for the Postgres sidecar (RWO — keep replicas: 1).
+# Requires a default StorageClass in the cluster (EKS usually provides gp2/gp3).
+# For a throwaway DB: skip this file and patch the Deployment volume to emptyDir
+# (see deploy/k8s/README.md).
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: demo-app-postgres
+  namespace: poc
+  labels:
+    app.kubernetes.io/name: demo-app
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 2Gi

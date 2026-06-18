@@ -30,3 +30,4 @@ agent/docker-certs/*
 !agent/docker-certs/.gitkeep
 
 terraform/environments/poc/backend.hcl
+terraform/environments/poc/config

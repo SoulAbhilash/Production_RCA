@@ -212,7 +212,7 @@ flowchart LR
 - [x] **B.3** Apply Kubernetes manifests with dry run:  
   `kubectl apply -f deploy/k8s/app/ --dry-run=client`
 - [x] **B.4** Define **ConfigMap** for non-secret config (injection toggles for lab only—**do not** enable injections in any real production environment).
-- [x] **B.5** Define **Secret** for `DATABASE_URL` (use Sealed Secrets or External Secrets in real environments; for POC base64 Secret is acceptable **only** in lab).
+- [x] **B.5** Define **Secret** for the demo DB: **`POSTGRES_PASSWORD`** (sidecar Postgres) + **`DATABASE_URL`** for the app at **`127.0.0.1`** (same pod). For real environments prefer **Sealed Secrets**, **External Secrets**, or RDS instead of an in-pod database (see `deploy/k8s/app/secret.yaml.example`).
 
 ### Completion criteria (Phase B)
 
@@ -255,10 +255,10 @@ flowchart LR
 
 ### Checklist
 
-- [ ] **D.1** Create EKS cluster (version pinned) with **one** managed node group (or Fargate profile — document choice).
-- [ ] **D.2** Install **VPC CNI** (default) and ensure nodes can reach ECR/API endpoints (NAT or endpoints).
-- [ ] **D.3** Configure `**kubectl`** via `aws eks update-kubeconfig`.
-- [ ] **D.4** (Optional cost) **AWS Load Balancer Controller** — skip until you need public ingress.
+- [x] **D.1** Create EKS cluster (version pinned) with **one** managed node group (or Fargate profile — document choice).
+- [x] **D.2** Install **VPC CNI** (default) and ensure nodes can reach ECR/API endpoints (NAT or endpoints).
+- [x] **D.3** Configure `**kubectl`** via `aws eks update-kubeconfig`.
+- [x] **D.4** (Optional cost) **AWS Load Balancer Controller** — skip until you need public ingress.
 - [ ] **D.5** **IRSA**: create IAM roles for **app** (if it needs AWS APIs) and **agent** (CloudWatch Logs read, S3 put) and annotate Kubernetes ServiceAccounts.
 
 ### Completion criteria (Phase D)

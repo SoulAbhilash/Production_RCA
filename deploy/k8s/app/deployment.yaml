@@ -16,14 +16,23 @@ spec:
         app.kubernetes.io/name: demo-app
     spec:
       serviceAccountName: demo-app
+      # Postgres image runs as uid 70; app runs as 10001 (set on container).
+      # fsGroup lets the PVC root be group-writable for the postgres GID.
       securityContext:
         runAsNonRoot: true
-        runAsUser: 10001
-        fsGroup: 10001
+        fsGroup: 70
+      volumes:
+        - name: postgres-data
+          persistentVolumeClaim:
+            claimName: demo-app-postgres
       containers:
         - name: app
           image: CHANGEME_ECR/demo-app:latest
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 10001
           ports:
             - containerPort: 8000
               name: http
@@ -40,18 +49,52 @@ spec:
             httpGet:
               path: /ready
               port: http
-            initialDelaySeconds: 5
+            initialDelaySeconds: 10
             periodSeconds: 10
           livenessProbe:
             httpGet:
               path: /health
               port: http
-            initialDelaySeconds: 10
+            initialDelaySeconds: 15
             periodSeconds: 20
           resources:
             requests:
               cpu: 100m
               memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+        - name: postgres
+          image: postgres:16-alpine
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5432
+              name: postgres
+          env:
+            - name: POSTGRES_USER
+              value: "app"
+            - name: POSTGRES_DB
+              value: "app"
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: demo-app-db
+                  key: POSTGRES_PASSWORD
+            # Keep data on the volume subpath (avoids lost+found / permission noise on some PVs).
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          volumeMounts:
+            - name: postgres-data
+              mountPath: /var/lib/postgresql/data
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "app", "-d", "app", "-h", "127.0.0.1", "-p", "5432"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
             limits:
               cpu: "1"
               memory: 512Mi

@@ -26,7 +26,8 @@ jobs:
           kubectl apply -f deploy/k8s/app/namespace.yaml
           kubectl apply -f deploy/k8s/app/rbac.yaml
           kubectl apply -f deploy/k8s/app/configmap.yaml
-          kubectl -n poc get secret demo-app-db >/dev/null 2>&1 || (echo "Create secret demo-app-db first" && exit 1)
+          kubectl apply -f deploy/k8s/app/postgres-pvc.yaml
+          kubectl -n poc get secret demo-app-db >/dev/null 2>&1 || (echo "Create secret demo-app-db first (POSTGRES_PASSWORD + DATABASE_URL @127.0.0.1 — see deploy/k8s/app/secret.yaml.example)" && exit 1)
           sed "s|CHANGEME_ECR/demo-app:latest|${ECR_REGISTRY}/demo-app:${TAG}|" deploy/k8s/app/deployment.yaml | kubectl apply -f -
           kubectl apply -f deploy/k8s/app/service.yaml
           kubectl apply -f deploy/k8s/agent/rbac.yaml
