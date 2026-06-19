@@ -1,0 +1,109 @@
+# CD: deploy demo-app + rca-agent to EKS after a successful ECR build on main, or on demand.
+# Prereqs: repo secrets AWS_ROLE_ARN (OIDC), GEMINI_API_KEY (Gemini for rca-agent); EKS access entry for that role
+#          (Terraform when create_github_oidc=true); cluster secret demo-app-db in namespace poc.
+#          rca-agent-secrets is created/updated in-cluster from GEMINI_API_KEY each run (key: gemini-api-key).
+#
+# Optional repo Variables (Settings → Secrets and variables → Actions → Variables):
+#   EKS_CLUSTER_NAME     default applied in script: rca-poc-eks
+#   DEPLOY_POSTGRES_PVC  set to "true" to kubectl apply postgres-pvc.yaml (skip if using emptyDir)
+name: Deploy EKS
+
+on:
+  workflow_run:
+    workflows: ["Build and push ECR"]
+    types:
+      - completed
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-eks-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    env:
+      AWS_REGION: us-east-1
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - uses: azure/setup-kubectl@v4
+        with:
+          version: "v1.29.0"
+
+      - name: Deploy to EKS
+        env:
+          EKS_CLUSTER_NAME: ${{ vars.EKS_CLUSTER_NAME }}
+          DEPLOY_POSTGRES_PVC: ${{ vars.DEPLOY_POSTGRES_PVC }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          set -euo pipefail
+          if [ "${{ github.event_name }}" = "workflow_run" ]; then
+            TAG="${{ github.event.workflow_run.head_sha }}"
+          else
+            TAG="${{ github.sha }}"
+          fi
+          CLUSTER="${EKS_CLUSTER_NAME:-rca-poc-eks}"
+          ACCOUNT="$(aws sts get-caller-identity --query Account --output text)"
+          ECR_REGISTRY="${ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+          echo "TAG=${TAG}"
+          echo "CLUSTER=${CLUSTER}"
+          echo "ECR_REGISTRY=${ECR_REGISTRY}"
+
+          aws eks update-kubeconfig --region "${AWS_REGION}" --name "${CLUSTER}"
+
+          kubectl apply -f deploy/k8s/app/namespace.yaml
+          kubectl apply -f deploy/k8s/app/rbac.yaml
+          kubectl apply -f deploy/k8s/app/configmap.yaml
+
+          if [[ "${DEPLOY_POSTGRES_PVC:-}" == "true" ]]; then
+            kubectl apply -f deploy/k8s/app/postgres-pvc.yaml
+          else
+            echo "Skipping postgres PVC (set repo Variable DEPLOY_POSTGRES_PVC=true to apply)."
+          fi
+
+          kubectl -n poc get secret demo-app-db >/dev/null 2>&1 || (echo "Create secret demo-app-db in poc (see deploy/k8s/app/secret.yaml.example)" && exit 1)
+
+          if [ -z "${GEMINI_API_KEY:-}" ]; then
+            echo "::error::Repository secret GEMINI_API_KEY is not set (Settings → Secrets and variables → Actions)."
+            exit 1
+          fi
+          kubectl create secret generic rca-agent-secrets \
+            --from-literal=gemini-api-key="${GEMINI_API_KEY}" \
+            -n poc \
+            --dry-run=client -o yaml | kubectl apply -f -
+
+          kubectl apply -f deploy/k8s/app/deployment.yaml
+          kubectl set image deployment/demo-app \
+            "app=${ECR_REGISTRY}/demo-app:${TAG}" \
+            "postgres=postgres:16-alpine" \
+            -n poc
+
+          kubectl apply -f deploy/k8s/app/service.yaml
+
+          kubectl apply -f deploy/k8s/agent/rbac.yaml
+          kubectl apply -f deploy/k8s/agent/deployment.yaml
+          kubectl set image deployment/rca-agent \
+            "agent=${ECR_REGISTRY}/rca-agent:${TAG}" \
+            -n poc
+
+          kubectl apply -f deploy/k8s/agent/service.yaml
+
+          kubectl rollout status deployment/demo-app -n poc --timeout=300s
+          kubectl rollout status deployment/rca-agent -n poc --timeout=300s
+          kubectl get pods -n poc

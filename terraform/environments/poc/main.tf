@@ -22,7 +22,7 @@ module "vpc" {
 }
 
 module "ecr" {
-  source = "../../modules/ecr"
+  source       = "../../modules/ecr"
 }
 
 module "eks" {
@@ -45,4 +45,27 @@ module "iam_github_oidc" {
   github_branch_names = var.github_branch_names
   ecr_repository_arns = module.ecr.repository_arns
   eks_cluster_arns    = [module.eks.cluster_arn]
+}
+
+# Allow GitHub Actions OIDC role to use kubectl (after images are pushed).
+resource "aws_eks_access_entry" "github_actions" {
+  count = var.create_github_oidc ? 1 : 0
+
+  cluster_name  = module.eks.cluster_name
+  principal_arn = module.iam_github_oidc[0].role_arn
+  type            = "STANDARD"
+}
+
+resource "aws_eks_access_policy_association" "github_actions_cluster_admin" {
+  count = var.create_github_oidc ? 1 : 0
+
+  cluster_name  = module.eks.cluster_name
+  policy_arn    = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
+  principal_arn = module.iam_github_oidc[0].role_arn
+
+  access_scope {
+    type = "cluster"
+  }
+
+  depends_on = [aws_eks_access_entry.github_actions]
 }

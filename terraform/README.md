@@ -28,9 +28,9 @@ Set `create_github_oidc = true` and `github_repository = "yourorg/yourrepo"` **o
 
 Match `github_repository` and `github_branch_names` to the IAM `sub` claims GitHub sends (see [AWS docs: GitHub OIDC](https://docs.github.com/en/actions/deployment/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services)).
 
-## EKS access for the CI role
+## EKS access for the CI / CD role
 
-Grant the GitHub Actions role cluster access (EKS access entries / console) after first apply — see playbook Phase E.
+When `create_github_oidc = true`, the POC stack creates an **EKS access entry** + **AmazonEKSClusterAdminPolicy** association for the GitHub Actions role so **`deploy-eks.yml`** can run `kubectl` via OIDC (no kubeconfig secret). For production, replace cluster admin with a narrower access policy.
 
 ## Troubleshooting
 

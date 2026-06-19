@@ -14,9 +14,7 @@ Apply order (lab):
    `  --from-literal=POSTGRES_PASSWORD='...' \`  
    `  --from-literal=DATABASE_URL='postgresql+psycopg://app:...@127.0.0.1:5432/app'`  
    Or copy `secret.yaml.example` to a **local** untracked `secret.yaml`, edit values, then apply.
-6. Edit `deployment.yaml` image to your ECR URL (or use the GitHub deploy workflow `sed`), then:  
-   `kubectl apply -f deploy/k8s/app/deployment.yaml`  
-   `kubectl apply -f deploy/k8s/app/service.yaml`
+6. Set container images to your ECR tag (same as CI: commit SHA), e.g. `kubectl set image deployment/demo-app app=ACCOUNT.dkr.ecr.REGION.amazonaws.com/demo-app:SHA -n poc` (and `postgres=postgres:16-alpine`), or rely on **[`.github/workflows/deploy-eks.yml`](../../.github/workflows/deploy-eks.yml)** after push to `main`.
 7. Agent: `kubectl apply -f deploy/k8s/agent/`
 
 Dry-run (no cluster required for client-side validation):
@@ -42,3 +40,11 @@ If you have **no StorageClass** or want a **throwaway** DB (data lost when the p
 ```
 
 3. Keep the **postgres** container `PGDATA` as in the default `deployment.yaml` (data under `/var/lib/postgresql/data/pgdata` on the volume).
+
+## CD from GitHub Actions
+
+After **`Build and push ECR`** succeeds on **`main`**, workflow **[`.github/workflows/deploy-eks.yml`](../.github/workflows/deploy-eks.yml)** deploys to EKS using **OIDC** (`AWS_ROLE_ARN`) and `aws eks update-kubeconfig` (no `KUBECONFIG_B64`). You can also run **Deploy EKS** manually from the Actions tab.
+
+Prereqs: Terraform applied with **`create_github_oidc = true`** (adds an EKS **access entry** for the GitHub role), cluster secret **`demo-app-db`** in **`poc`**, and GitHub Actions repository secret **`GEMINI_API_KEY`** (the workflow creates/updates **`rca-agent-secrets`** in **`poc`** from it each run; key name **`gemini-api-key`**). For **local-only** deploys without Actions, create that secret manually (see `deploy/k8s/agent/deployment.yaml`). Optional repo **Variables**: `EKS_CLUSTER_NAME` (default `rca-poc-eks` in the script), `DEPLOY_POSTGRES_PVC`=`true` to apply the Postgres PVC manifest.
+
+If you **rotate** `GEMINI_API_KEY` in GitHub without a new image tag, run **`kubectl rollout restart deployment/rca-agent -n poc`** after a successful deploy (or temporarily bump the agent image) so running pods reload the Secret.

@@ -2,6 +2,8 @@ resource "aws_ecr_repository" "this" {
   for_each             = toset(var.names)
   name                 = each.key
   image_tag_mutability = var.image_tag_mutability
+  # Required for clean `terraform destroy` when images still exist (AWS otherwise returns RepositoryNotEmptyException).
+  force_delete = var.force_delete
 
   image_scanning_configuration {
     scan_on_push = true

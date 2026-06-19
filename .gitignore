@@ -31,3 +31,4 @@ agent/docker-certs/*
 
 terraform/environments/poc/backend.hcl
 terraform/environments/poc/config
+temp.txt

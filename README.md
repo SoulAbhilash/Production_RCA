@@ -29,7 +29,7 @@ From the repo root: `vagrant up` (requires VirtualBox) brings up **two** VMs: **
 | `agent/` | RCA webhook (`rca_agent` package); see [`agent/README.md`](agent/README.md) |
 | `deploy/k8s/` | Kubernetes manifests |
 | `terraform/` | VPC, ECR, EKS, optional GitHub Actions OIDC IAM (poc environment) |
-| `.github/workflows/` | CI (lint, K8s dry-run, Terraform validate), ECR build/push (OIDC), manual EKS deploy/smoke |
+| `.github/workflows/` | CI (lint, K8s dry-run, Terraform validate), ECR build/push (OIDC), CD deploy to EKS after ECR on `main`, optional smoke |
 
 ## License
 

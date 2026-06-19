@@ -23,11 +23,10 @@ spec:
         fsGroup: 70
       volumes:
         - name: postgres-data
-          persistentVolumeClaim:
-            claimName: demo-app-postgres
+          emptyDir: {}
       containers:
         - name: app
-          image: CHANGEME_ECR/demo-app:latest
+          image: 523368007337.dkr.ecr.us-east-1.amazonaws.com/demo-app:7be312e17e0297be9f63df8d1fd39d777c80cb88
           imagePullPolicy: IfNotPresent
           securityContext:
             allowPrivilegeEscalation: false
@@ -67,6 +66,11 @@ spec:
         - name: postgres
           image: postgres:16-alpine
           imagePullPolicy: IfNotPresent
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 70
+            runAsGroup: 70
           ports:
             - containerPort: 5432
               name: postgres

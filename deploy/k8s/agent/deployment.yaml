@@ -22,7 +22,7 @@ spec:
         fsGroup: 10002
       containers:
         - name: agent
-          image: CHANGEME_ECR/rca-agent:latest
+          image: 523368007337.dkr.ecr.us-east-1.amazonaws.com/rca-agent:7be312e17e0297be9f63df8d1fd39d777c80cb88
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 8080
@@ -30,7 +30,8 @@ spec:
           env:
             - name: LOG_LEVEL
               value: INFO
-            # Secret is not in git. Create once per cluster:
+            # Secret is not in git. GitHub Actions (deploy-eks.yml) syncs rca-agent-secrets from repo secret GEMINI_API_KEY.
+            # Local / bootstrap without CI:
             #   kubectl create secret generic rca-agent-secrets \
             #     --from-literal=gemini-api-key='YOUR_NEW_KEY' -n poc
             # key below must match the literal name after --from-literal=

@@ -152,7 +152,7 @@ flowchart LR
 | `docker-compose.yml` (repo root)                                                        | Local Postgres + app; optional `INJECT_`* via env when running `docker compose up` (see Phase A) |
 | `[.github/workflows/ci.yml](../.github/workflows/ci.yml)`                               | Lint, K8s dry-run, Terraform validate                                                            |
 | `[.github/workflows/build-push-ecr.yml](../.github/workflows/build-push-ecr.yml)`       | Build/push images to ECR (OIDC on `main`)                                                        |
-| `[.github/workflows/deploy-eks-manual.yml](../.github/workflows/deploy-eks-manual.yml)` | Manual `kubectl apply` (secrets required)                                                        |
+| `[.github/workflows/deploy-eks.yml](../.github/workflows/deploy-eks.yml)` | CD: deploy to EKS after successful ECR build on `main`, or `workflow_dispatch` (OIDC; no kubeconfig secret) |
 | `[.github/workflows/smoke-eks-manual.yml](../.github/workflows/smoke-eks-manual.yml)`   | Manual in-cluster `/health` check                                                                |
 | `[README.md](../README.md)`                                                             | Quick start pointer                                                                              |
 
@@ -283,10 +283,8 @@ flowchart LR
 - [ ] **E.2** Create a role (e.g. `github-actions-poc-rca`) with trust policy conditioned on:
   - `StringEquals`: `token.actions.githubusercontent.com:aud` = `sts.amazonaws.com`
   - `StringLike`: `token.actions.githubusercontent.com:sub` = `repo:YOUR_ORG/YOUR_REPO:ref:refs/heads/main` (add more `sub` patterns only if needed, e.g. release tags).
-- [ ] **E.3** Attach policies: **ECR** push/pull for your repos; **eks:DescribeCluster**; **sts:GetCallerIdentity**; deploy via `**kubectl`** using an auth mechanism:
-  - **Option 1 (common):** store a **narrow** `KUBECONFIG` secret generated from a deploy bot IAM user (POC only), **rotated**; or
-  - **Option 2 (better):** use `**aws eks update-kubeconfig`** in a job with an OIDC role that maps to EKS **access entries** (avoid granting `system:masters` outside lab).
-- [ ] **E.4** Add workflows under `.github/workflows/`: CI (`ci.yml`), build/push (`build-push-ecr.yml`), optional manual deploy/smoke (`deploy-eks-manual.yml`, `smoke-eks-manual.yml`).
+- [ ] **E.3** Attach policies: **ECR** push/pull for your repos; **eks:DescribeCluster**; **sts:GetCallerIdentity**; deploy via **`aws eks update-kubeconfig`** in Actions with an OIDC role that has an EKS **access entry** (Terraform adds this when `create_github_oidc = true`).
+- [ ] **E.4** Add workflows under `.github/workflows/`: CI (`ci.yml`), build/push (`build-push-ecr.yml`), CD deploy (`deploy-eks.yml`), optional smoke (`smoke-eks-manual.yml`).
 - [ ] **E.5** In the GitHub repo, add **Actions secrets** / **variables** the workflows expect (see table below). Use `**aws-actions/configure-aws-credentials`** with `id-token: write` permission on jobs that assume the role.
 - [ ] **E.6** Protect `main`, use **environments** for production-like targets, and never echo secrets in job logs.
 
@@ -295,9 +293,10 @@ flowchart LR
 
 | Name             | Kind   | Purpose                                                                                              |
 | ---------------- | ------ | ---------------------------------------------------------------------------------------------------- |
-| `AWS_ROLE_ARN`   | Secret | IAM role ARN for OIDC (`build-push-ecr.yml`)                                                         |
-| `KUBECONFIG_B64` | Secret | Base64 kubeconfig for manual deploy/smoke workflows (masked)                                         |
-| `ECR_REGISTRY`   | Secret | e.g. `123456789012.dkr.ecr.us-east-1.amazonaws.com` — used by manual deploy to substitute image URLs |
+| `AWS_ROLE_ARN`           | Secret   | IAM role ARN for OIDC (`build-push-ecr.yml`, `deploy-eks.yml`, `smoke-eks-manual.yml`)                |
+| `GEMINI_API_KEY`         | Secret   | Gemini API key; `deploy-eks.yml` applies it to in-cluster `rca-agent-secrets` (`gemini-api-key`) in `poc` |
+| `EKS_CLUSTER_NAME`       | Variable | Optional; EKS cluster name (workflow defaults to `rca-poc-eks` if unset)                              |
+| `DEPLOY_POSTGRES_PVC`    | Variable | Optional; set to `true` to apply `postgres-pvc.yaml` during CD (omit if using emptyDir sidecar DB)   |
 
 
 Workflow `build-push-ecr.yml` uses `permissions: id-token: write` and defaults **AWS region** to `us-east-1` in the workflow file — edit if your ECR cluster is elsewhere.
@@ -305,7 +304,8 @@ Workflow `build-push-ecr.yml` uses `permissions: id-token: write` and defaults *
 ### Completion criteria (Phase E)
 
 - [ ] A workflow run on `**main`** publishes a **new image tag** (commit SHA) to **ECR** after `AWS_ROLE_ARN` is configured.
-- [ ] Manual **Deploy EKS** rolls the **Deployment** and **Smoke EKS** hits `/health` (in-cluster `curl` via `kubectl run`).
+- [ ] **Deploy EKS** runs after that build (or from **Actions → Deploy EKS**) and rolls **demo-app** + **rca-agent** to the same SHA tag.
+- [ ] Manual **Smoke EKS** hits `/health` (in-cluster `curl` via `kubectl run`) after OIDC deploy works.
 
 ### Artifacts
 
